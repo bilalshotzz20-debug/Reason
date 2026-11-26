@@ -3,15 +3,14 @@ import os
 from groq import Groq
 
 # --- PAGE CONFIG & INITIALIZATION ---
-st.set_page_config(page_title="BioMind AI", page_icon="🧬", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Reason | Medical Diagnostics", page_icon="🧠", layout="wide", initial_sidebar_state="expanded")
 
-# Initialize Theme
 if "theme" not in st.session_state:
-    st.session_state.theme = "light" # Default to clean medical light mode
+    st.session_state.theme = "light" # Clinical Light Mode by Default
 
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {"role": "assistant", "content": "Welcome to BioMind. I am your AI medical diagnostician. Please describe your symptoms to begin the analysis."}
+        {"role": "assistant", "content": "Welcome to Reason. I am your advanced medical reasoning engine. Please describe your symptoms in detail to begin the analysis."}
     ]
 
 # --- FETCH API KEY ---
@@ -20,21 +19,21 @@ try:
 except:
     SECRET_KEY = None
 
-# --- DYNAMIC CSS (THE MEDICAL UI) ---
+# --- DYNAMIC CSS (CLEAN MEDICAL UI) ---
 if st.session_state.theme == "dark":
-    bg_color = "#0F172A"          # Deep Slate
-    text_color = "#F8FAFC"        # Off-white
-    muted_color = "#94A3B8"       # Light grey
-    chat_ai_bg = "#1E293B"        # Darker Slate
-    chat_user_bg = "#0EA5E9"      # Medical Blue
+    bg_color = "#0F172A"          
+    text_color = "#F8FAFC"        
+    muted_color = "#94A3B8"       
+    chat_ai_bg = "#1E293B"        
+    chat_user_bg = "#0EA5E9"      
     input_bg = "#1E293B"
     border_color = "#334155"
 else:
-    bg_color = "#F8FAFC"          # Clean Clinical White
-    text_color = "#1E293B"        # Dark Slate
-    muted_color = "#64748B"       # Slate grey
-    chat_ai_bg = "#FFFFFF"        # Pure White
-    chat_user_bg = "#0EA5E9"      # Medical Blue
+    bg_color = "#F8FAFC"          
+    text_color = "#1E293B"        
+    muted_color = "#64748B"       
+    chat_ai_bg = "#FFFFFF"        
+    chat_user_bg = "#0EA5E9"      
     input_bg = "#FFFFFF"
     border_color = "#E2E8F0"
 
@@ -141,7 +140,6 @@ def check_emergency(symptoms_text):
 # --- TOP BAR (Theme Toggle) ---
 col1, col2 = st.columns([4, 1])
 with col2:
-    # Using Streamlit's native toggle but wrapped nicely
     is_dark = st.toggle("🌙 Dark Mode", value=(st.session_state.theme == "dark"))
     if is_dark and st.session_state.theme == "light":
         st.session_state.theme = "dark"
@@ -153,14 +151,14 @@ with col2:
 # --- HERO SECTION ---
 st.markdown(f"""
 <div style="text-align: center; margin-bottom: 40px;">
-    <h1 style="font-size: 2.5rem; font-weight: 700; color: {text_color}; margin-bottom: 5px;">🧬 BioMind AI</h1>
-    <p style="color: {muted_color}; font-size: 1rem; letter-spacing: 0.5px;">Advanced Medical Diagnostics Engine</p>
+    <h1 style="font-size: 3rem; font-weight: 700; color: {text_color}; margin-bottom: 5px;">🧠 Reason</h1>
+    <p style="color: {muted_color}; font-size: 1rem; letter-spacing: 1px;">ADVANCED MEDICAL DIAGNOSTICS & REASONING ENGINE</p>
 </div>
 """, unsafe_allow_html=True)
 
 # --- CHAT INTERFACE ---
 for message in st.session_state.messages:
-    avatar = "🧑‍⚕️" if message["role"] == "assistant" else "👤"
+    avatar = "🩺" if message["role"] == "assistant" else "👤"
     with st.chat_message(message["role"], avatar=avatar):
         st.markdown(message["content"])
 
@@ -176,7 +174,7 @@ with st.sidebar:
         api_key_input = st.text_input("Groq API Key", type="password", placeholder="gsk_...")
     
     st.divider()
-    st.markdown("<p style='font-size: 0.8rem; color: gray;'>Disclaimer: BioMind is an AI assistant, not a replacement for professional medical advice.</p>", unsafe_allow_html=True)
+    st.markdown("<p style='font-size: 0.8rem; color: gray;'>Disclaimer: Reason is an AI assistant, not a replacement for professional medical advice.</p>", unsafe_allow_html=True)
 
 # --- INPUT LOGIC ---
 if prompt := st.chat_input("Describe your symptoms..."):
@@ -185,7 +183,7 @@ if prompt := st.chat_input("Describe your symptoms..."):
     with st.chat_message("user", avatar="👤"):
         st.markdown(prompt)
 
-    with st.chat_message("assistant", avatar="🧑‍⚕️"):
+    with st.chat_message("assistant", avatar="🩺"):
         if not api_key_input:
             st.error("⚠️ API Key missing.")
             st.stop()
@@ -201,12 +199,12 @@ if prompt := st.chat_input("Describe your symptoms..."):
             </div>
             """, unsafe_allow_html=True)
 
-        with st.spinner("Analyzing..."):
+        with st.spinner("Reasoning through medical database..."):
             try:
                 client = Groq(api_key=api_key_input)
                 
                 system_prompt = """
-                You are BioMind, an elite AI medical diagnostician.
+                You are Reason, an elite AI medical diagnostician.
                 Analyze the patient's symptoms and provide a structured, professional medical report.
                 
                 YOU MUST FORMAT YOUR RESPONSE EXACTLY LIKE THIS USING MARKDOWN:
