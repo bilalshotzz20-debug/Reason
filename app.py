@@ -34,6 +34,8 @@ if st.session_state.theme == "dark":
     input_bg = "#1E293B"
     border_color = "#334155"
     glow = "rgba(6, 182, 212, 0.15)"
+    uploader_bg = "#1E293B"
+    uploader_border = "#334155"
 else:
     bg_color = "#F4F7FB"          
     text_color = "#0F172A"        
@@ -43,6 +45,8 @@ else:
     input_bg = "#FFFFFF"
     border_color = "#E2E8F0"
     glow = "rgba(14, 165, 233, 0.15)"
+    uploader_bg = "#FFFFFF"
+    uploader_border = "#CBD5E1"
 
 st.markdown(f"""
 <style>
@@ -56,31 +60,61 @@ h1, h2, h3, h4, h5, h6, p, span, div, li {{ color: {text_color} !important; }}
 [data-testid="stSidebar"] {{ background-color: {bg_color} !important; border-right: 1px solid {border_color}; }}
 [data-testid="stSidebar"] * {{ color: {text_color} !important; }}
 
+/* --- CUSTOM TOGGLE --- */
 div[data-testid="stToggle"] {{ background: {chat_ai_bg}; padding: 6px 16px; border-radius: 30px; border: 1px solid {border_color}; width: fit-content; margin-left: auto; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }}
+div[data-testid="stToggle"] label span {{ color: {text_color} !important; }}
 
+/* --- HERO HEADER --- */
 .hero {{ text-align: center; margin-bottom: 20px; animation: fadeIn 0.8s ease-out; }}
 .hero h1 {{ font-size: 3rem; font-weight: 700; letter-spacing: -1.5px; margin-bottom: 5px; }}
 .hero p {{ color: {muted_color} !important; font-size: 0.95rem; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; }}
 @keyframes fadeIn {{ from {{ opacity: 0; transform: translateY(-10px); }} to {{ opacity: 1; transform: translateY(0); }} }}
 
+/* --- CHAT MESSAGES --- */
 [data-testid="stChatMessage"] {{ background-color: {chat_ai_bg}; border: 1px solid {border_color}; border-radius: 16px; padding: 20px 24px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03); animation: slideUp 0.4s ease-out; }}
 @keyframes slideUp {{ from {{ opacity: 0; transform: translateY(10px); }} to {{ opacity: 1; transform: translateY(0); }} }}
 
 [data-testid="stChatMessage"]:has(div[aria-label="Chat message from user"]) {{ background: {chat_user_bg} !important; border: none !important; box-shadow: 0 8px 25px {glow}; }}
 [data-testid="stChatMessage"]:has(div[aria-label="Chat message from user"]) * {{ color: #FFFFFF !important; }}
 
+/* --- CHAT INPUT --- */
 [data-testid="stChatInput"] {{ background-color: transparent !important; }}
 [data-testid="stChatInput"] > div {{ background-color: {input_bg} !important; border: 1px solid {border_color} !important; border-radius: 40px !important; padding: 10px 20px !important; box-shadow: 0 4px 15px rgba(0,0,0,0.05) !important; }}
 [data-testid="stChatInput"] > div:focus-within {{ border-color: #2563EB !important; box-shadow: 0 0 15px {glow} !important; }}
 [data-testid="stChatInput"] textarea {{ color: {text_color} !important; }}
 
+/* --- EMERGENCY BANNER --- */
 .emergency-banner {{ background-color: #FEF2F2; border-left: 5px solid #EF4444; color: #991B1B !important; padding: 18px 20px; border-radius: 8px; margin-bottom: 20px; font-weight: 700; font-size: 1.05rem; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.1); }}
 .emergency-banner span {{ color: #7F1D1D !important; font-weight: 500; font-size: 0.9rem; }}
 
-/* Tabs Styling */
-.stTabs [data-baseweb="tab-list"] {{ gap: 24px; }}
-.stTabs [data-baseweb="tab"] {{ height: 50px; white-space: pre-wrap; background-color: transparent; border-radius: 4px 4px 0px 0px; gap: 1px; padding-top: 10px; padding-bottom: 10px; }}
+/* --- FIXED TABS --- */
+.stTabs [data-baseweb="tab-list"] {{ gap: 24px; border-bottom: 2px solid {border_color}; }}
+.stTabs [data-baseweb="tab"] {{ height: 50px; white-space: pre-wrap; background-color: transparent; gap: 1px; padding-top: 10px; padding-bottom: 10px; }}
 .stTabs [aria-selected="true"] {{ background-color: {chat_ai_bg}; border-bottom: 2px solid #2563EB; }}
+.stTabs [data-baseweb="tab"] p {{ color: {muted_color} !important; font-weight: 600; }}
+.stTabs [aria-selected="true"] p {{ color: {text_color} !important; }}
+
+/* --- FIXED FILE UPLOADER (LIGHT MODE FIX) --- */
+[data-testid="stFileUploader"] {{ background-color: transparent !important; }}
+[data-testid="stFileUploadDropzone"] {{
+    background-color: {uploader_bg} !important;
+    border: 2px dashed {uploader_border} !important;
+    border-radius: 12px !important;
+}}
+[data-testid="stFileUploadDropzone"]:hover {{
+    border-color: #2563EB !important;
+}}
+[data-testid="stFileUploadDropzone"] span, 
+[data-testid="stFileUploadDropzone"] small,
+[data-testid="stFileUploadDropzone"] div {{
+    color: {text_color} !important;
+}}
+/* Upload Button */
+[data-testid="stFileUploadDropzone"] button {{
+    background-color: {bg_color} !important;
+    color: {text_color} !important;
+    border: 1px solid {uploader_border} !important;
+}}
 
 @media (max-width: 768px) {{ .block-container {{ padding: 1rem; }} .hero h1 {{ font-size: 2.2rem; }} }}
 </style>
@@ -245,6 +279,7 @@ with tab1:
 # ==========================================
 with tab2:
     st.markdown("### Upload Lab Report or Doctor's Prescription (PDF)")
+    # AI wording hatadi gayi hai
     st.markdown("Reason will extract the text, analyze the values, and provide a diagnosis and recommendations.")
     
     uploaded_file = st.file_uploader("Upload PDF Report", type=["pdf"])
