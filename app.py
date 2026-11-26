@@ -203,6 +203,7 @@ if prompt := st.chat_input("Describe your symptoms..."):
             try:
                 client = Groq(api_key=api_key_input)
                 
+                # UPDATED PROMPT (Disclaimer Removed from AI output)
                 system_prompt = """
                 You are Reason, an elite AI medical diagnostician.
                 Analyze the patient's symptoms and provide a structured, professional medical report.
@@ -224,6 +225,7 @@ if prompt := st.chat_input("Describe your symptoms..."):
                 ### 🧪 Recommended Next Steps
                 *   **[Test Name]:** [Why this test is needed]
                 *   **[Action]:** [E.g., Consult a specialist]
+                """
                 
                 chat_completion = client.chat.completions.create(
                     messages=[
