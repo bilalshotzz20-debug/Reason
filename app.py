@@ -10,7 +10,7 @@ st.set_page_config(page_title="Reason | Clinical Diagnostics", page_icon="🧠",
 
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {"role": "assistant", "content": "Welcome to Reason. I am your advanced medical reasoning engine. Please describe your symptoms or upload a medical report to begin."}
+        {"role": "assistant", "content": "Welcome to Reason. I am your advanced medical reasoning engine. Please describe your symptoms or upload medical reports to begin."}
     ]
 
 if "last_report" not in st.session_state:
@@ -71,7 +71,7 @@ h1, h2, h3, h4, h5, h6, p, span, div, li, label, small {
 .stTabs [aria-selected="true"] { border-bottom: 3px solid #2563EB; }
 .stTabs [aria-selected="true"] p { color: #1E3A8A !important; }
 
-/* FILE UPLOADER (FORCED WHITE) */
+/* FILE UPLOADER */
 [data-testid="stFileUploader"] { background-color: transparent !important; }
 [data-testid="stFileUploadDropzone"] { 
     background-color: #FFFFFF !important; 
@@ -105,12 +105,17 @@ h1, h2, h3, h4, h5, h6, p, span, div, li, label, small {
 """, unsafe_allow_html=True)
 
 # --- FUNCTIONS ---
-def extract_text_from_pdf(pdf_file):
-    try:
-        reader = pypdf.PdfReader(pdf_file)
-        return "".join([page.extract_text() + "\n" for page in reader.pages])
-    except Exception as e:
-        return f"Error reading PDF: {str(e)}"
+def extract_text_from_pdfs(pdf_files):
+    combined_text = ""
+    for pdf_file in pdf_files:
+        try:
+            reader = pypdf.PdfReader(pdf_file)
+            for page in reader.pages:
+                combined_text += page.extract_text() + "\n"
+            combined_text += "\n--- End of Document ---\n\n"
+        except Exception as e:
+            combined_text += f"Error reading PDF {pdf_file.name}: {str(e)}\n"
+    return combined_text
 
 def generate_pdf_report(report_text, symptoms):
     pdf = FPDF()
@@ -159,8 +164,9 @@ with st.sidebar:
     st.divider()
     st.markdown("<p style='font-size: 0.85rem;'><b>Disclaimer:</b> Reason does not replace a real doctor. Consult a professional for emergencies.</p>", unsafe_allow_html=True)
 
-tab1, tab2 = st.tabs(["🩺 Symptom Chat", "📄 Upload Medical Report"])
+tab1, tab2 = st.tabs(["🩺 Symptom Chat", "📄 Upload Medical Reports"])
 
+# --- TAB 1: CHAT ---
 with tab1:
     for message in st.session_state.messages:
         with st.chat_message(message["role"], avatar="🩺" if message["role"] == "assistant" else "👤"):
@@ -190,38 +196,44 @@ with tab1:
                 except Exception as e:
                     st.error(f"System Error: {str(e)}")
 
+# --- TAB 2: MULTIPLE UPLOADS ---
 with tab2:
-    st.markdown("### 📄 Upload Lab Report (PDF)")
-    st.markdown("<p>Reason will extract values and provide a diagnosis.</p>", unsafe_allow_html=True)
+    st.markdown("### 📄 Upload Lab Reports (PDF)")
+    st.markdown("<p>Upload one or multiple PDFs (e.g., CBC + LFT). Reason will combine them and provide a full diagnosis.</p>", unsafe_allow_html=True)
     
-    uploaded_file = st.file_uploader("Upload PDF", type=["pdf"], label_visibility="collapsed")
+    # Accept multiple files
+    uploaded_files = st.file_uploader("Upload PDFs", type=["pdf"], accept_multiple_files=True, label_visibility="collapsed")
     
-    if uploaded_file and st.button("Analyze Report", use_container_width=True):
-        if not api_key_input:
-            st.error("⚠️ API Key missing.")
-            st.stop()
-        with st.spinner("Extracting..."):
-            extracted = extract_text_from_pdf(uploaded_file)
-            
-        if "Error" in extracted or len(extracted.strip()) < 20:
-            st.error("Could not read PDF text.")
-        else:
-            st.success("Text extracted!")
-            with st.expander("View Extracted Text"):
-                st.text(extracted[:1000] + "...")
-            
-            with st.spinner("Reasoning..."):
-                try:
-                    client = Groq(api_key=api_key_input)
-                    sys_prompt = "You are Reason. Analyze this medical report. Never refer to yourself as AI. FORMAT: ### 📋 Key Findings [list] ### 🦠 Top Possible Conditions **1. [Condition]** *Why it fits:* [explain] ### 🚨 Urgency Level **[Level]** [explain] ### 🧪 Recommendations * **[Action]:** [advice]"
-                    res = client.chat.completions.create(messages=[{"role": "system", "content": sys_prompt}, {"role": "user", "content": extracted}], model="openai/gpt-oss-120b", temperature=0.1).choices[0].message.content
-                    st.markdown("---")
-                    st.markdown(res)
-                    st.session_state.last_report = res
-                    st.session_state.last_symptoms = "Uploaded Report"
-                except Exception as e:
-                    st.error(f"Error: {str(e)}")
+    if uploaded_files:
+        st.info(f"📁 {len(uploaded_files)} file(s) uploaded.")
+        if st.button("Analyze Reports", use_container_width=True):
+            if not api_key_input:
+                st.error("⚠️ API Key missing.")
+                st.stop()
+                
+            with st.spinner("Extracting text from all PDFs..."):
+                extracted = extract_text_from_pdfs(uploaded_files)
+                
+            if len(extracted.strip()) < 20:
+                st.error("Could not read PDF text.")
+            else:
+                st.success("Text extracted from all files!")
+                with st.expander("View Extracted Text"):
+                    st.text(extracted[:1500] + "..." if len(extracted) > 1500 else extracted)
+                
+                with st.spinner("Reasoning through all reports..."):
+                    try:
+                        client = Groq(api_key=api_key_input)
+                        sys_prompt = "You are Reason. Analyze these combined medical reports. Never refer to yourself as AI. FORMAT: ### 📋 Key Findings [list abnormal values] ### 🦠 Top Possible Conditions **1. [Condition]** *Why it fits:* [explain based on reports] ### 🚨 Urgency Level **[Level]** [explain] ### 🧪 Recommendations * **[Action]:** [advice based on all reports]"
+                        res = client.chat.completions.create(messages=[{"role": "system", "content": sys_prompt}, {"role": "user", "content": extracted}], model="openai/gpt-oss-120b", temperature=0.1).choices[0].message.content
+                        st.markdown("---")
+                        st.markdown(res)
+                        st.session_state.last_report = res
+                        st.session_state.last_symptoms = f"Analysis of {len(uploaded_files)} uploaded medical reports."
+                    except Exception as e:
+                        st.error(f"Error: {str(e)}")
 
+# --- DOWNLOAD PDF ---
 if st.session_state.last_report:
     st.markdown("<br>", unsafe_allow_html=True)
     pdf_bytes = generate_pdf_report(st.session_state.last_report, st.session_state.last_symptoms)
