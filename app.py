@@ -2,10 +2,8 @@ import streamlit as st
 import os
 from groq import Groq
 
-# =====================================================
-# 1. PAGE CONFIG & INITIALIZATION
-# =====================================================
-st.set_page_config(page_title="BioMind AI", page_icon="🧬", layout="wide", initial_sidebar_state="collapsed")
+# --- PAGE CONFIG & INITIALIZATION ---
+st.set_page_config(page_title="BioMind AI", page_icon="🧬", layout="wide", initial_sidebar_state="expanded")
 
 if "theme" not in st.session_state:
     st.session_state.theme = "dark"
@@ -15,17 +13,13 @@ if "messages" not in st.session_state:
         {"role": "assistant", "content": "Welcome to BioMind. I am your AI medical assistant. Please describe your symptoms to begin the analysis."}
     ]
 
-# =====================================================
-# 2. FETCH API KEY (SECRETS OR SIDEBAR)
-# =====================================================
+# --- FETCH API KEY (SECRETS OR SIDEBAR) ---
 try:
     SECRET_KEY = st.secrets["GROQ_API_KEY"]
 except:
     SECRET_KEY = None
 
-# =====================================================
-# 3. DYNAMIC CSS (LIGHT & DARK MODES)
-# =====================================================
+# --- DYNAMIC CSS (LIGHT & DARK MODES + EMERGENCY BANNER) ---
 if st.session_state.theme == "dark":
     bg_color = "#050508"
     text_color = "#F8FAFC"
@@ -46,7 +40,7 @@ else:
     card_border = "rgba(0, 0, 0, 0.08)"
     chat_user_bg = "#E0E7FF" 
     chat_ai_bg = "#FFFFFF" 
-    input_bg = "#FFFFFF" # Light mode input background
+    input_bg = "#FFFFFF"
     glow = "rgba(139, 92, 246, 0.15)"
     blob1 = "rgba(139, 92, 246, 0.08)"
     blob2 = "rgba(6, 182, 212, 0.08)"
@@ -78,61 +72,59 @@ div[data-testid="stToggle"] {{ background: {card_bg}; padding: 10px 20px; border
 [data-testid="stChatMessage"]:has(div[aria-label="Chat message from user"]) {{ background: {chat_user_bg} !important; }}
 [data-testid="stChatMessage"]:has(div[aria-label="Chat message from assistant"]) {{ background: {chat_ai_bg} !important; }}
 
-/* =========================================
-   CHAT INPUT FIX (THE MAGIC HAPPENS HERE)
-   ========================================= */
-/* Remove default white background of the outer wrapper */
-[data-testid="stChatInput"] {{ 
-    background: transparent !important; 
-    border: none !important;
-}}
-
-/* Style the actual input container */
-[data-testid="stChatInput"] > div {{ 
-    background: {input_bg} !important; 
-    border: 1px solid {card_border} !important; 
-    border-radius: 50px !important; 
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1) !important;
-    transition: all 0.3s ease;
-}}
-
-/* Style the text and placeholder */
-[data-testid="stChatInput"] textarea {{ 
-    color: {text_color} !important; 
-    caret-color: {text_color} !important;
-}}
-[data-testid="stChatInput"] textarea::placeholder {{ 
-    color: {muted_color} !important; 
-    opacity: 1 !important;
-}}
-
-/* Style the send button */
-[data-testid="stChatInput"] button {{ 
-    color: {text_color} !important; 
-}}
-[data-testid="stChatInput"] button:hover {{ 
-    background-color: {card_border} !important; 
-}}
-
-[data-testid="stChatInput"]:focus-within > div {{ 
-    border-color: #8B5CF6 !important; 
-    box-shadow: 0 0 20px {glow} !important; 
-}}
+/* Chat Input */
+[data-testid="stChatInput"] {{ background: transparent !important; border: none !important; }}
+[data-testid="stChatInput"] > div {{ background: {input_bg} !important; border: 1px solid {card_border} !important; border-radius: 50px !important; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1) !important; transition: all 0.3s ease; }}
+[data-testid="stChatInput"] textarea {{ color: {text_color} !important; caret-color: {text_color} !important; }}
+[data-testid="stChatInput"] textarea::placeholder {{ color: {muted_color} !important; opacity: 1 !important; }}
+[data-testid="stChatInput"] button {{ color: {text_color} !important; }}
+[data-testid="stChatInput"]:focus-within > div {{ border-color: #8B5CF6 !important; box-shadow: 0 0 20px {glow} !important; }}
 
 /* Hero */
 .hero {{ text-align: center; margin-bottom: 40px; animation: fadeIn 1s ease-out; }}
 .hero h1 {{ font-size: 3.5rem; font-weight: 800; letter-spacing: -1.5px; background: linear-gradient(135deg, #8B5CF6 0%, #06B6D4 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 10px; }}
 .hero p {{ font-size: 1.1rem; color: {muted_color} !important; }}
 @keyframes fadeIn {{ from {{ opacity: 0; }} to {{ opacity: 1; }} }}
+
+/* 🚨 EMERGENCY BANNER CSS */
+.emergency-banner {
+    background-color: #EF4444;
+    color: white !important;
+    padding: 20px;
+    border-radius: 12px;
+    font-size: 1.5rem;
+    font-weight: 800;
+    text-align: center;
+    margin-bottom: 20px;
+    animation: pulse-red 2s infinite;
+    border: 2px solid #FCA5A5;
+}
+@keyframes pulse-red {
+    0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+    70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
 </style>
 
 <div class="blob blob1"></div>
 <div class="blob blob2"></div>
 """, unsafe_allow_html=True)
 
-# =====================================================
-# 4. TOP BAR (Theme Toggle)
-# =====================================================
+# --- EMERGENCY KEYWORD CHECKER (PYTHON FAIL-SAFE) ---
+def check_emergency(symptoms_text):
+    symptoms_text = symptoms_text.lower()
+    emergency_keywords = [
+        "chest pain", "heart attack", "radiating to left arm", "crushing chest",
+        "stroke", "slurred speech", "facial drooping", "arm weakness",
+        "severe bleeding", "cannot breathe", "shortness of breath", 
+        "suicidal", "want to die", "overdose"
+    ]
+    for keyword in emergency_keywords:
+        if keyword in symptoms_text:
+            return True
+    return False
+
+# --- TOP BAR (Theme Toggle) ---
 col1, col2 = st.columns([3, 1])
 with col2:
     is_dark = st.toggle("🌙 Dark Mode", value=(st.session_state.theme == "dark"))
@@ -143,9 +135,7 @@ with col2:
         st.session_state.theme = "light"
         st.rerun()
 
-# =====================================================
-# 5. HERO SECTION
-# =====================================================
+# --- HERO SECTION ---
 st.markdown("""
 <div class="hero">
     <h1>BioMind AI</h1>
@@ -153,17 +143,13 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# =====================================================
-# 6. CHAT INTERFACE
-# =====================================================
+# --- CHAT INTERFACE ---
 for message in st.session_state.messages:
     avatar = "🧬" if message["role"] == "assistant" else "👤"
     with st.chat_message(message["role"], avatar=avatar):
         st.markdown(message["content"])
 
-# =====================================================
-# 7. SIDEBAR & KEY LOGIC
-# =====================================================
+# --- SIDEBAR & KEY LOGIC ---
 api_key_input = ""
 with st.sidebar:
     st.markdown("### ⚙️ System Config")
@@ -174,8 +160,9 @@ with st.sidebar:
         st.warning("⚠️ API Key not found in Secrets. Please enter manually.")
         api_key_input = st.text_input("Groq API Key", type="password", placeholder="gsk_...")
 
-# Input logic
-if prompt := st.chat_input("Describe your symptoms here (e.g., fever, sore throat...)"):
+# --- INPUT LOGIC ---
+# Yahan maine version check ke liye v2.0 likh diya hai
+if prompt := st.chat_input("🟢 BioMind v2.0 | Describe your symptoms here..."):
     
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user", avatar="👤"):
@@ -186,10 +173,22 @@ if prompt := st.chat_input("Describe your symptoms here (e.g., fever, sore throa
             st.error("⚠️ API Key missing. Please check Streamlit Secrets or enter it in the sidebar.")
             st.stop()
             
+        # 1. PYTHON-LEVEL EMERGENCY OVERRIDE (LAAL BANNER)
+        is_emergency = check_emergency(prompt)
+        
+        if is_emergency:
+            st.markdown("""
+            <div class="emergency-banner">
+                🚨 CALL EMERGENCY SERVICES (1122 / 911) IMMEDIATELY <br>
+                <span style="font-size: 1rem; font-weight: 400; color: white;">Do not drive yourself. Unlock the door and wait for paramedics.</span>
+            </div>
+            """, unsafe_allow_html=True)
+
         with st.spinner("Analyzing medical database..."):
             try:
                 client = Groq(api_key=api_key_input)
                 
+                # 2. STRICTER SYSTEM PROMPT
                 system_prompt = """
                 You are BioMind, an elite AI medical diagnostician.
                 Analyze the patient's symptoms and provide a structured, professional medical report.
@@ -199,15 +198,13 @@ if prompt := st.chat_input("Describe your symptoms here (e.g., fever, sore throa
                 ### 🦠 Top Possible Conditions
                 **1. [Condition Name]**
                 *Why it fits:* [1 sentence explanation]
-
                 **2. [Condition Name]**
                 *Why it fits:* [1 sentence explanation]
-
                 **3. [Condition Name]**
                 *Why it fits:* [1 sentence explanation]
 
                 ### 🚨 Urgency Level
-                **[Low / Medium / High]**
+                **[Low / Medium / High / CRITICAL]**
                 [1 sentence explaining the urgency]
 
                 ### 🧪 Recommended Next Steps
