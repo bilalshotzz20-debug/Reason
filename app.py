@@ -8,9 +8,6 @@ import pypdf
 # --- PAGE CONFIG & INITIALIZATION ---
 st.set_page_config(page_title="Reason | Clinical Diagnostics", page_icon="🧠", layout="wide", initial_sidebar_state="expanded")
 
-if "theme" not in st.session_state:
-    st.session_state.theme = "light"
-
 if "messages" not in st.session_state:
     st.session_state.messages = [
         {"role": "assistant", "content": "Welcome to Reason. I am your advanced medical reasoning engine. Please describe your symptoms or upload a medical report to begin."}
@@ -24,50 +21,39 @@ try:
 except:
     SECRET_KEY = None
 
-# --- DYNAMIC COLOR PALETTE & CSS ---
-if st.session_state.theme == "dark":
-    bg_color = "#0B1120"          
-    text_color = "#F8FAFC"        
-    muted_color = "#94A3B8"       
-    chat_ai_bg = "#1E293B"        
-    chat_user_bg = "linear-gradient(135deg, #06B6D4 0%, #4F46E5 100%)" 
-    input_bg = "#1E293B"
-    border_color = "#334155"
-    glow = "rgba(6, 182, 212, 0.15)"
-    uploader_bg = "#1E293B"
-    uploader_border = "#334155"
-else:
-    bg_color = "#F4F7FB"          
-    text_color = "#0F172A"        
-    muted_color = "#64748B"       
-    chat_ai_bg = "#FFFFFF"        
-    chat_user_bg = "linear-gradient(135deg, #0EA5E9 0%, #2563EB 100%)" 
-    input_bg = "#FFFFFF"
-    border_color = "#E2E8F0"
-    glow = "rgba(14, 165, 233, 0.15)"
-    uploader_bg = "#FFFFFF"
-    uploader_border = "#CBD5E1"
+# --- FIXED MEDICAL COLOR PALETTE ---
+bg_color = "#F4F7FB"          # Clinical Light Icy Blue
+text_color = "#0F172A"        # Deep Slate (Almost black, better than pure black)
+muted_color = "#64748B"       # Slate grey
+chat_ai_bg = "#FFFFFF"        # Pure white
+chat_user_bg = "linear-gradient(135deg, #0EA5E9 0%, #2563EB 100%)" # Medical Blue Gradient
+input_bg = "#FFFFFF"
+border_color = "#E2E8F0"
+glow = "rgba(14, 165, 233, 0.15)"
+uploader_bg = "#FFFFFF"
+uploader_border = "#CBD5E1"
 
 st.markdown(f"""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+/* --- GLOBAL --- */
 html, body, [class*="css"] {{ font-family: 'Plus Jakarta Sans', sans-serif !important; }}
-.stApp {{ background-color: {bg_color}; color: {text_color}; transition: background-color 0.4s ease; }}
+.stApp {{ background-color: {bg_color}; color: {text_color}; }}
 #MainMenu, footer, header {{ visibility: hidden; }}
 .block-container {{ max-width: 950px; padding-top: 2rem; padding-bottom: 6rem; }}
+
+/* Force text visibility */
 h1, h2, h3, h4, h5, h6, p, span, div, li {{ color: {text_color} !important; }}
 
+/* --- SIDEBAR --- */
 [data-testid="stSidebar"] {{ background-color: {bg_color} !important; border-right: 1px solid {border_color}; }}
 [data-testid="stSidebar"] * {{ color: {text_color} !important; }}
 
-/* --- CUSTOM TOGGLE --- */
-div[data-testid="stToggle"] {{ background: {chat_ai_bg}; padding: 6px 16px; border-radius: 30px; border: 1px solid {border_color}; width: fit-content; margin-left: auto; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }}
-div[data-testid="stToggle"] label span {{ color: {text_color} !important; }}
-
 /* --- HERO HEADER --- */
-.hero {{ text-align: center; margin-bottom: 20px; animation: fadeIn 0.8s ease-out; }}
-.hero h1 {{ font-size: 3rem; font-weight: 700; letter-spacing: -1.5px; margin-bottom: 5px; }}
-.hero p {{ color: {muted_color} !important; font-size: 0.95rem; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; }}
+.hero {{ text-align: center; margin-bottom: 30px; animation: fadeIn 0.8s ease-out; }}
+.hero h1 {{ font-size: 3.5rem; font-weight: 800; letter-spacing: -1.5px; margin-bottom: 5px; color: #1E3A8A !important; }}
+.hero p {{ color: {muted_color} !important; font-size: 0.95rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }}
 @keyframes fadeIn {{ from {{ opacity: 0; transform: translateY(-10px); }} to {{ opacity: 1; transform: translateY(0); }} }}
 
 /* --- CHAT MESSAGES --- */
@@ -84,37 +70,30 @@ div[data-testid="stToggle"] label span {{ color: {text_color} !important; }}
 [data-testid="stChatInput"] textarea {{ color: {text_color} !important; }}
 
 /* --- EMERGENCY BANNER --- */
-.emergency-banner {{ background-color: #FEF2F2; border-left: 5px solid #EF4444; color: #991B1B !important; padding: 18px 20px; border-radius: 8px; margin-bottom: 20px; font-weight: 700; font-size: 1.05rem; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.1); }}
-.emergency-banner span {{ color: #7F1D1D !important; font-weight: 500; font-size: 0.9rem; }}
+.emergency-banner {{ background-color: #FEF2F2; border-left: 6px solid #EF4444; color: #991B1B !important; padding: 20px; border-radius: 8px; margin-bottom: 20px; font-weight: 800; font-size: 1.1rem; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.1); }}
+.emergency-banner span {{ color: #7F1D1D !important; font-weight: 500; font-size: 0.95rem; }}
 
-/* --- FIXED TABS --- */
+/* --- TABS --- */
 .stTabs [data-baseweb="tab-list"] {{ gap: 24px; border-bottom: 2px solid {border_color}; }}
 .stTabs [data-baseweb="tab"] {{ height: 50px; white-space: pre-wrap; background-color: transparent; gap: 1px; padding-top: 10px; padding-bottom: 10px; }}
-.stTabs [aria-selected="true"] {{ background-color: {chat_ai_bg}; border-bottom: 2px solid #2563EB; }}
-.stTabs [data-baseweb="tab"] p {{ color: {muted_color} !important; font-weight: 600; }}
-.stTabs [aria-selected="true"] p {{ color: {text_color} !important; }}
+.stTabs [aria-selected="true"] {{ background-color: {chat_ai_bg}; border-bottom: 3px solid #2563EB; }}
+.stTabs [data-baseweb="tab"] p {{ color: {muted_color} !important; font-weight: 700; }}
+.stTabs [aria-selected="true"] p {{ color: #1E3A8A !important; }}
 
-/* --- FIXED FILE UPLOADER (LIGHT MODE FIX) --- */
+/* --- FILE UPLOADER --- */
 [data-testid="stFileUploader"] {{ background-color: transparent !important; }}
-[data-testid="stFileUploadDropzone"] {{
-    background-color: {uploader_bg} !important;
-    border: 2px dashed {uploader_border} !important;
-    border-radius: 12px !important;
-}}
-[data-testid="stFileUploadDropzone"]:hover {{
-    border-color: #2563EB !important;
-}}
-[data-testid="stFileUploadDropzone"] span, 
-[data-testid="stFileUploadDropzone"] small,
-[data-testid="stFileUploadDropzone"] div {{
-    color: {text_color} !important;
-}}
-/* Upload Button */
-[data-testid="stFileUploadDropzone"] button {{
-    background-color: {bg_color} !important;
-    color: {text_color} !important;
-    border: 1px solid {uploader_border} !important;
-}}
+[data-testid="stFileUploadDropzone"] {{ background-color: {uploader_bg} !important; border: 2px dashed {uploader_border} !important; border-radius: 12px !important; padding: 20px !important; }}
+[data-testid="stFileUploadDropzone"]:hover {{ border-color: #2563EB !important; }}
+[data-testid="stFileUploadDropzone"] span, [data-testid="stFileUploadDropzone"] small, [data-testid="stFileUploadDropzone"] div {{ color: {text_color} !important; }}
+[data-testid="stFileUploadDropzone"] button {{ background-color: {bg_color} !important; color: #2563EB !important; border: 1px solid #2563EB !important; border-radius: 8px !important; font-weight: 600; }}
+
+/* --- BUTTONS --- */
+.stButton > button {{ background-color: #2563EB !important; color: white !important; border-radius: 8px !important; font-weight: 600; padding: 10px 24px; }}
+.stButton > button:hover {{ background-color: #1D4ED8 !important; border-color: #1D4ED8 !important; color: white !important; }}
+
+/* --- DOWNLOAD BUTTON --- */
+.stDownloadButton > button {{ background-color: #10B981 !important; color: white !important; border-radius: 8px !important; font-weight: 600; padding: 10px 24px; border: none !important; }}
+.stDownloadButton > button:hover {{ background-color: #059669 !important; }}
 
 @media (max-width: 768px) {{ .block-container {{ padding: 1rem; }} .hero h1 {{ font-size: 2.2rem; }} }}
 </style>
@@ -174,17 +153,7 @@ def check_emergency(symptoms_text):
             return True
     return False
 
-# --- TOP BAR ---
-col1, col2 = st.columns([4, 1])
-with col2:
-    is_dark = st.toggle("🌙 Dark Mode", value=(st.session_state.theme == "dark"))
-    if is_dark and st.session_state.theme == "light":
-        st.session_state.theme = "dark"
-        st.rerun()
-    elif not is_dark and st.session_state.theme == "dark":
-        st.session_state.theme = "light"
-        st.rerun()
-
+# --- HEADER ---
 st.markdown("""
 <div class="hero">
     <h1>🧠 Reason</h1>
@@ -195,16 +164,16 @@ st.markdown("""
 # --- SIDEBAR ---
 api_key_input = ""
 with st.sidebar:
-    st.markdown("<h3 style='font-size: 1.1rem; font-weight: 700;'>⚙️ Configuration</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='font-size: 1.2rem; font-weight: 800; color: #1E3A8A;'>⚙️ System Settings</h3>", unsafe_allow_html=True)
     if SECRET_KEY:
-        st.success("✅ API Key connected.")
+        st.success("✅ API Key connected securely.")
         api_key_input = SECRET_KEY
     else:
         st.warning("⚠️ API Key required.")
         api_key_input = st.text_input("Groq API Key", type="password", placeholder="gsk_...")
     
     st.divider()
-    st.markdown("<p style='font-size: 0.8rem; color: gray;'>Disclaimer: Reason is a clinical diagnostics system. Always consult a real doctor for medical emergencies.</p>", unsafe_allow_html=True)
+    st.markdown("<p style='font-size: 0.85rem; color: #64748B;'><b>Disclaimer:</b> Reason is a clinical diagnostics system. It does not replace a real doctor. Always consult a medical professional for emergencies.</p>", unsafe_allow_html=True)
 
 # --- TABS CREATION ---
 tab1, tab2 = st.tabs(["🩺 Symptom Chat", "📄 Upload Medical Report"])
@@ -278,11 +247,10 @@ with tab1:
 # TAB 2: UPLOAD MEDICAL REPORT
 # ==========================================
 with tab2:
-    st.markdown("### Upload Lab Report or Doctor's Prescription (PDF)")
-    # AI wording hatadi gayi hai
-    st.markdown("Reason will extract the text, analyze the values, and provide a diagnosis and recommendations.")
+    st.markdown("### 📄 Upload Lab Report or Prescription (PDF)")
+    st.markdown("<p style='color: #64748B;'>Reason will extract the text, analyze the values, and provide a diagnosis and recommendations.</p>", unsafe_allow_html=True)
     
-    uploaded_file = st.file_uploader("Upload PDF Report", type=["pdf"])
+    uploaded_file = st.file_uploader("Upload PDF Report", type=["pdf"], label_visibility="collapsed")
     
     if uploaded_file is not None:
         if st.button("Analyze Report", use_container_width=True):
