@@ -86,8 +86,8 @@ div[data-testid="stToggle"] {{ background: {card_bg}; padding: 10px 20px; border
 .hero p {{ font-size: 1.1rem; color: {muted_color} !important; }}
 @keyframes fadeIn {{ from {{ opacity: 0; }} to {{ opacity: 1; }} }}
 
-/* 🚨 EMERGENCY BANNER CSS */
-.emergency-banner {
+/* 🚨 EMERGENCY BANNER CSS (FIXED) */
+.emergency-banner {{
     background-color: #EF4444;
     color: white !important;
     padding: 20px;
@@ -98,12 +98,12 @@ div[data-testid="stToggle"] {{ background: {card_bg}; padding: 10px 20px; border
     margin-bottom: 20px;
     animation: pulse-red 2s infinite;
     border: 2px solid #FCA5A5;
-}
-@keyframes pulse-red {
-    0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-    70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-}
+}}
+@keyframes pulse-red {{
+    0% {{ box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }}
+    70% {{ box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); }}
+    100% {{ box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }}
+}}
 </style>
 
 <div class="blob blob1"></div>
@@ -161,7 +161,6 @@ with st.sidebar:
         api_key_input = st.text_input("Groq API Key", type="password", placeholder="gsk_...")
 
 # --- INPUT LOGIC ---
-# Yahan maine version check ke liye v2.0 likh diya hai
 if prompt := st.chat_input("🟢 BioMind v2.0 | Describe your symptoms here..."):
     
     st.session_state.messages.append({"role": "user", "content": prompt})
