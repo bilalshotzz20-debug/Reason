@@ -224,10 +224,6 @@ if prompt := st.chat_input("Describe your symptoms..."):
                 ### 🧪 Recommended Next Steps
                 *   **[Test Name]:** [Why this test is needed]
                 *   **[Action]:** [E.g., Consult a specialist]
-
-                ---
-                *⚕️ Disclaimer: I am an AI assistant. This is not a substitute for professional medical diagnosis. Please consult a doctor immediately.*
-                """
                 
                 chat_completion = client.chat.completions.create(
                     messages=[
