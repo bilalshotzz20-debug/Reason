@@ -2,12 +2,12 @@ import streamlit as st
 import os
 from groq import Groq
 
-# --- PAGE CONFIG ---
+# --- PAGE CONFIG & INITIALIZATION ---
 st.set_page_config(page_title="Reason | Clinical AI", page_icon="🧠", layout="wide", initial_sidebar_state="expanded")
 
-# State Init
 if "theme" not in st.session_state:
-    st.session_state.theme = "light"
+    st.session_state.theme = "light" # Clinical light mode default
+
 if "messages" not in st.session_state:
     st.session_state.messages = [
         {"role": "assistant", "content": "Welcome to Reason. I am your advanced medical reasoning engine. Please describe your symptoms in detail to begin the analysis."}
@@ -18,27 +18,31 @@ try:
 except:
     SECRET_KEY = None
 
-# --- DYNAMIC CSS ---
+# --- DYNAMIC COLOR PALETTE & CSS ---
 if st.session_state.theme == "dark":
-    bg_color = "#080C14"          # Midnight Navy
-    text_color = "#F1F5F9"        # Off-White
-    muted_color = "#94A3B8"       
-    card_bg = "rgba(30, 41, 59, 0.4)" # Glass AI Bubble
-    user_bg = "linear-gradient(135deg, #2563EB 0%, #06B6D4 100%)" # Modern Blue Gradient
+    # Dark Mode: Midnight Navy & Neon Cyan/Indigo
+    bg_color = "#0B1120"          # Very deep navy
+    text_color = "#F8FAFC"        # Crisp white
+    muted_color = "#94A3B8"       # Slate grey
+    chat_ai_bg = "#1E293B"        # Slate 800
+    chat_user_bg = "linear-gradient(135deg, #06B6D4 0%, #4F46E5 100%)" # Cyan to Indigo
     input_bg = "#1E293B"
-    border_color = "rgba(255,255,255,0.1)"
+    border_color = "#334155"
+    glow = "rgba(6, 182, 212, 0.15)"
 else:
-    bg_color = "#F4F7F9"          # Clinical Light Grey
-    text_color = "#0F172A"        # Dark Slate
-    muted_color = "#64748B"       
-    card_bg = "#FFFFFF"           # Pure White AI Bubble
-    user_bg = "linear-gradient(135deg, #2563EB 0%, #06B6D4 100%)" 
+    # Light Mode: Clinical Icy Blue & Royal Blue
+    bg_color = "#F4F7FB"          # Very soft blue/grey
+    text_color = "#0F172A"        # Deep slate (almost black, better than pure black)
+    muted_color = "#64748B"       # Slate 500
+    chat_ai_bg = "#FFFFFF"        # Pure white
+    chat_user_bg = "linear-gradient(135deg, #0EA5E9 0%, #2563EB 100%)" # Sky Blue to Royal Blue
     input_bg = "#FFFFFF"
     border_color = "#E2E8F0"
+    glow = "rgba(14, 165, 233, 0.15)"
 
 st.markdown(f"""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
 
 /* --- GLOBAL --- */
 html, body, [class*="css"] {{
@@ -47,7 +51,7 @@ html, body, [class*="css"] {{
 .stApp {{
     background-color: {bg_color};
     color: {text_color};
-    transition: background-color 0.4s ease;
+    transition: background-color 0.4s ease, color 0.4s ease;
 }}
 #MainMenu, footer, header {{ visibility: hidden; }}
 .block-container {{ max-width: 950px; padding-top: 2rem; padding-bottom: 6rem; }}
@@ -59,7 +63,7 @@ h1, h2, h3, h4, h5, h6, p, span, div, li {{
 
 /* --- SIDEBAR --- */
 [data-testid="stSidebar"] {{
-    background-color: {card_bg} !important;
+    background-color: {bg_color} !important;
     border-right: 1px solid {border_color};
 }}
 [data-testid="stSidebar"] * {{
@@ -68,13 +72,13 @@ h1, h2, h3, h4, h5, h6, p, span, div, li {{
 
 /* --- CUSTOM TOGGLE --- */
 div[data-testid="stToggle"] {{
-    background: {card_bg};
-    padding: 6px 15px;
+    background: {chat_ai_bg};
+    padding: 6px 16px;
     border-radius: 30px;
     border: 1px solid {border_color};
     width: fit-content;
     margin-left: auto;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.03);
 }}
 
 /* --- HERO HEADER --- */
@@ -84,16 +88,16 @@ div[data-testid="stToggle"] {{
     animation: fadeIn 0.8s ease-out;
 }}
 .hero h1 {{
-    font-size: 2.8rem;
-    font-weight: 800;
-    letter-spacing: -1px;
+    font-size: 3rem;
+    font-weight: 700;
+    letter-spacing: -1.5px;
     margin-bottom: 5px;
 }}
 .hero p {{
     color: {muted_color} !important;
-    font-size: 1rem;
-    font-weight: 500;
-    letter-spacing: 1.5px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: 2px;
     text-transform: uppercase;
 }}
 @keyframes fadeIn {{
@@ -103,12 +107,12 @@ div[data-testid="stToggle"] {{
 
 /* --- CHAT MESSAGES --- */
 [data-testid="stChatMessage"] {{
-    background-color: {card_bg};
+    background-color: {chat_ai_bg};
     border: 1px solid {border_color};
     border-radius: 16px;
     padding: 20px 24px;
     margin-bottom: 20px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
     animation: slideUp 0.4s ease-out;
 }}
 @keyframes slideUp {{
@@ -116,31 +120,31 @@ div[data-testid="stToggle"] {{
     to {{ opacity: 1; transform: translateY(0); }}
 }}
 
-/* User Message Specific */
+/* User Message Specific (Gradient Background) */
 [data-testid="stChatMessage"]:has(div[aria-label="Chat message from user"]) {{
-    background: {user_bg} !important;
+    background: {chat_user_bg} !important;
     border: none !important;
-    box-shadow: 0 8px 25px rgba(37, 99, 235, 0.2);
+    box-shadow: 0 8px 25px {glow};
 }}
 [data-testid="stChatMessage"]:has(div[aria-label="Chat message from user"]) * {{
-    color: #FFFFFF !important; /* Pure white text */
+    color: #FFFFFF !important; /* Pure white text for contrast */
 }}
 
-/* --- CHAT INPUT --- */
+/* --- CHAT INPUT (Floating Pill) --- */
 [data-testid="stChatInput"] {{
     background-color: transparent !important;
 }}
 [data-testid="stChatInput"] > div {{
     background-color: {input_bg} !important;
     border: 1px solid {border_color} !important;
-    border-radius: 30px !important; /* Pill shape */
-    padding: 8px 16px !important;
+    border-radius: 40px !important;
+    padding: 10px 20px !important;
     box-shadow: 0 4px 15px rgba(0,0,0,0.05) !important;
     transition: all 0.3s ease;
 }}
 [data-testid="stChatInput"] > div:focus-within {{
     border-color: #2563EB !important;
-    box-shadow: 0 0 15px rgba(37, 99, 235, 0.2) !important;
+    box-shadow: 0 0 15px {glow} !important;
 }}
 [data-testid="stChatInput"] textarea {{
     color: {text_color} !important;
@@ -152,32 +156,26 @@ div[data-testid="stToggle"] {{
 /* --- EMERGENCY BANNER --- */
 .emergency-banner {{
     background-color: #FEF2F2;
-    border-left: 6px solid #EF4444;
+    border-left: 5px solid #EF4444;
     color: #991B1B !important;
-    padding: 20px;
+    padding: 18px 20px;
     border-radius: 8px;
     margin-bottom: 20px;
     font-weight: 700;
-    font-size: 1.1rem;
+    font-size: 1.05rem;
     box-shadow: 0 4px 15px rgba(239, 68, 68, 0.1);
-    animation: pulse-border 2s infinite;
 }}
 .emergency-banner span {{
     color: #7F1D1D !important;
     font-weight: 500;
-    font-size: 0.95rem;
-}}
-@keyframes pulse-border {{
-    0% {{ border-left-color: #EF4444; }}
-    50% {{ border-left-color: #7F1D1D; }}
-    100% {{ border-left-color: #EF4444; }}
+    font-size: 0.9rem;
 }}
 
 /* --- MOBILE RESPONSIVE --- */
 @media (max-width: 768px) {{
     .block-container {{ padding: 1rem; }}
-    .hero h1 {{ font-size: 2rem; }}
-    [data-testid="stChatMessage"] {{ padding: 15px; }}
+    .hero h1 {{ font-size: 2.2rem; }}
+    [data-testid="stChatMessage"] {{ padding: 16px; }}
 }}
 </style>
 """, unsafe_allow_html=True)
@@ -206,7 +204,7 @@ with col2:
 st.markdown("""
 <div class="hero">
     <h1>🧠 Reason</h1>
-    <p>Medical Reasoning Engine</p>
+    <p>Advanced Medical Reasoning Engine</p>
 </div>
 """, unsafe_allow_html=True)
 
