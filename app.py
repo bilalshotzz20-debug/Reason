@@ -22,60 +22,152 @@ try:
 except:
     SECRET_KEY = None
 
-# --- CLEAN MEDICAL CSS ---
+# --- VIBRANT COLORFUL CSS ---
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
+/* GLOBAL BACKGROUND & FONTS */
 html, body, [class*="css"] { font-family: 'Plus Jakarta Sans', sans-serif !important; }
-.stApp { background-color: #F8FAFC !important; color: #0F172A !important; }
+.stApp { 
+    background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+    background-image: radial-gradient(at 0% 0%, rgba(139, 92, 246, 0.1) 0px, transparent 50%), 
+                      radial-gradient(at 100% 100%, rgba(6, 182, 212, 0.1) 0px, transparent 50%);
+    color: #0F172A !important; 
+}
 #MainMenu, footer, header { visibility: hidden; }
 .block-container { max-width: 950px; padding-top: 2rem; padding-bottom: 6rem; }
 
+/* TEXT VISIBILITY */
 h1, h2, h3, h4, h5, h6, p, span, div, li, label { color: #0F172A !important; }
 
-[data-testid="stSidebar"] { background-color: #FFFFFF !important; border-right: 1px solid #E2E8F0 !important; }
+/* SIDEBAR */
+[data-testid="stSidebar"] { background-color: rgba(255,255,255,0.9) !important; backdrop-filter: blur(10px); border-right: 1px solid #E2E8F0 !important; }
 [data-testid="stSidebar"] * { color: #0F172A !important; }
 
+/* HERO TITLE (GRADIENT TEXT) */
 .hero { text-align: center; margin-bottom: 30px; }
-.hero h1 { font-size: 3.5rem; font-weight: 800; color: #1E3A8A !important; margin-bottom: 5px; }
-.hero p { color: #475569 !important; font-size: 0.95rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }
+.hero h1 { 
+    font-size: 3.5rem; font-weight: 800; margin-bottom: 5px; 
+    background: -webkit-linear-gradient(45deg, #8B5CF6, #EC4899, #06B6D4);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+.hero p { color: #64748B !important; font-size: 0.95rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }
 
-[data-testid="stChatMessage"] { background-color: #FFFFFF !important; border: 1px solid #E2E8F0 !important; border-radius: 16px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.03) !important; }
+/* CHAT BUBBLES */
+[data-testid="stChatMessage"] { 
+    background-color: #FFFFFF !important; 
+    border: 1px solid #E2E8F0 !important; 
+    border-radius: 20px; 
+    padding: 20px; 
+    margin-bottom: 20px; 
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05) !important; 
+}
 [data-testid="stChatMessage"] * { color: #0F172A !important; }
-[data-testid="stChatMessage"]:has(div[aria-label="Chat message from user"]) { background: linear-gradient(135deg, #0EA5E9 0%, #2563EB 100%) !important; border: none !important; }
+
+/* User Chat Bubble (Vibrant Gradient) */
+[data-testid="stChatMessage"]:has(div[aria-label="Chat message from user"]) { 
+    background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%) !important; 
+    border: none !important; 
+    box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.4) !important;
+}
 [data-testid="stChatMessage"]:has(div[aria-label="Chat message from user"]) * { color: #FFFFFF !important; }
 
+/* CHAT INPUT */
 [data-testid="stChatInput"] { background-color: transparent !important; }
-[data-testid="stChatInput"] > div { background-color: #FFFFFF !important; border: 2px solid #CBD5E1 !important; border-radius: 40px !important; padding: 10px 20px !important; }
-[data-testid="stChatInput"] > div:focus-within { border-color: #2563EB !important; box-shadow: 0 0 15px rgba(37, 99, 235, 0.2) !important; }
+[data-testid="stChatInput"] > div { 
+    background-color: #FFFFFF !important; 
+    border: 2px solid #C7D2FE !important; 
+    border-radius: 40px !important; 
+    padding: 10px 20px !important; 
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05) !important;
+    transition: all 0.3s ease;
+}
+[data-testid="stChatInput"] > div:focus-within { 
+    border-color: #8B5CF6 !important; 
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.3) !important; 
+}
 [data-testid="stChatInput"] textarea { color: #0F172A !important; }
-[data-testid="stChatInput"] textarea::placeholder { color: #64748B !important; }
 
-.emergency-banner { background-color: #FEF2F2 !important; border-left: 6px solid #EF4444 !important; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+/* EMERGENCY BANNER */
+.emergency-banner { 
+    background: linear-gradient(135deg, #FEF2F2 0%, #FEE2E2 100%) !important; 
+    border-left: 6px solid #EF4444 !important; 
+    padding: 20px; 
+    border-radius: 12px; 
+    margin-bottom: 20px; 
+    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.2);
+    animation: pulse-red 2s infinite;
+}
 .emergency-banner * { color: #991B1B !important; }
+@keyframes pulse-red {
+    0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+    70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
 
-/* TABS */
+/* TABS (Colorful Active State) */
 .stTabs [data-baseweb="tab-list"] { gap: 30px; border-bottom: 2px solid #E2E8F0; }
 .stTabs [data-baseweb="tab"] { height: 50px; background-color: transparent; }
-.stTabs [data-baseweb="tab"] p { color: #475569 !important; font-weight: 700; font-size: 1.05rem; }
-.stTabs [aria-selected="true"] { border-bottom: 3px solid #2563EB; }
-.stTabs [aria-selected="true"] p { color: #1E3A8A !important; }
+.stTabs [data-baseweb="tab"] p { color: #64748B !important; font-weight: 700; font-size: 1.05rem; }
+.stTabs [aria-selected="true"] { 
+    background: linear-gradient(90deg, #8B5CF6, #06B6D4);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    border-bottom: 3px solid #8B5CF6; 
+}
+.stTabs [aria-selected="true"] p { 
+    background: -webkit-linear-gradient(45deg, #8B5CF6, #06B6D4);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
 
 /* FILE UPLOADER */
 [data-testid="stFileUploader"] { background-color: transparent !important; }
-[data-testid="stFileUploadDropzone"] { background-color: #FFFFFF !important; border: 2px dashed #94A3B8 !important; border-radius: 12px !important; padding: 20px !important; }
+[data-testid="stFileUploadDropzone"] { 
+    background: linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%) !important; 
+    border: 2px dashed #A78BFA !important; 
+    border-radius: 16px !important; 
+    padding: 30px !important; 
+    transition: all 0.3s;
+}
+[data-testid="stFileUploadDropzone"]:hover { border-color: #8B5CF6 !important; background: #F5F3FF !important; }
 [data-testid="stFileUploadDropzone"] * { color: #0F172A !important; }
-[data-testid="stFileUploadDropzone"] button { background-color: #2563EB !important; border: none !important; border-radius: 8px !important; }
+[data-testid="stFileUploadDropzone"] button { 
+    background: linear-gradient(135deg, #8B5CF6, #6366F1) !important; 
+    border: none !important; 
+    border-radius: 8px !important; 
+    padding: 8px 16px;
+}
 [data-testid="stFileUploadDropzone"] button * { color: #FFFFFF !important; }
 
-.stButton > button { background-color: #2563EB !important; border: none !important; border-radius: 8px !important; width: 100%; padding: 12px; }
-.stButton > button * { color: #FFFFFF !important; font-weight: 700 !important; }
+/* BUTTONS */
+.stButton > button { 
+    background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%) !important; 
+    border: none !important; 
+    border-radius: 12px !important; 
+    width: 100%; 
+    padding: 14px; 
+    transition: 0.3s;
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+}
+.stButton > button:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5); }
+.stButton > button * { color: #FFFFFF !important; font-weight: 700 !important; font-size: 1rem;}
 
-.stDownloadButton > button { background-color: #10B981 !important; border: none !important; border-radius: 8px !important; width: 100%; padding: 12px; }
-.stDownloadButton > button * { color: #FFFFFF !important; font-weight: 700 !important; }
+.stDownloadButton > button { 
+    background: linear-gradient(135deg, #10B981 0%, #059669 100%) !important; 
+    border: none !important; 
+    border-radius: 12px !important; 
+    width: 100%; 
+    padding: 14px;
+    box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+}
+.stDownloadButton > button:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5); }
+.stDownloadButton > button * { color: #FFFFFF !important; font-weight: 700 !important; font-size: 1rem;}
 
-[data-testid="stExpander"] { border: 1px solid #E2E8F0 !important; border-radius: 8px; background-color: #FFFFFF !important; }
+/* EXPANDER */
+[data-testid="stExpander"] { border: 1px solid #E2E8F0 !important; border-radius: 12px; background-color: #FFFFFF !important; box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
 [data-testid="stExpander"] * { color: #0F172A !important; }
 </style>
 """, unsafe_allow_html=True)
@@ -96,7 +188,7 @@ def generate_pdf_report(report_text, symptoms):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", 'B', 20)
-    pdf.set_text_color(37, 99, 235)
+    pdf.set_text_color(99, 102, 241)
     pdf.cell(0, 10, "Reason Clinical Diagnostics Report", ln=True, align='C')
     pdf.set_font("Arial", size=10)
     pdf.set_text_color(100, 100, 100)
