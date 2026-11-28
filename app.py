@@ -1,278 +1,217 @@
 import streamlit as st
 import os
-import sqlite3
-import re
-import datetime
-import pypdf
 from groq import Groq
 from fpdf import FPDF
+import datetime
+import pypdf
 
 # ==========================================
-# 1. PAGE CONFIG & SETUP
+# 1. PAGE CONFIG & STATE MANAGEMENT
 # ==========================================
-st.set_page_config(page_title="Reason | Your Health Solution", page_icon="🫀", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Reason | Clinical AI", page_icon="🧠", layout="wide", initial_sidebar_state="expanded")
 
-# Database Init
-def init_db():
-    conn = sqlite3.connect('reason_health.db')
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS profile 
-                 (id INTEGER PRIMARY KEY, name TEXT, age INTEGER, gender TEXT, height REAL, weight REAL)''')
-    c.execute('''CREATE TABLE IF NOT EXISTS health_records 
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT, date TEXT, symptoms TEXT, analysis TEXT)''')
-    conn.commit()
-    conn.close()
-
-init_db()
-
-def load_profile():
-    conn = sqlite3.connect('reason_health.db')
-    c = conn.cursor()
-    c.execute("SELECT * FROM profile WHERE id=1")
-    row = c.fetchone()
-    conn.close()
-    if row:
-        return {"name": row[1], "age": row[2], "gender": row[3], "height": row[4], "weight": row[5]}
-    return {"name": "", "age": 25, "gender": "Male", "height": 170.0, "weight": 70.0}
-
-if "profile" not in st.session_state:
-    st.session_state.profile = load_profile()
-
+# Initialize Session State
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {"role": "assistant", "content": "Hello! I am Reason. I am here to help you understand your health better. How are you feeling today?"}
+        {"role": "assistant", "content": "Welcome to Reason. Please describe your symptoms or upload a medical report to begin."}
     ]
-
 if "report_data" not in st.session_state:
     st.session_state.report_data = None
+if "report_source" not in st.session_state:
+    st.session_state.report_source = None
 
+# Fetch API Key
 try:
     SECRET_KEY = st.secrets["GROQ_API_KEY"]
 except:
-    SECRET_KEY = ""
+    SECRET_KEY = None
 
 # ==========================================
-# 2. ANIMATED PREMIUM CSS
+# 2. ULTRA PREMIUM CSS (FORCED LIGHT MODE)
 # ==========================================
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+/* Global App Settings */
 html, body, [class*="css"] { font-family: 'Inter', sans-serif !important; }
-.stApp { background-color: #F8FAFC !important; color: #1E293B !important; overflow-x: hidden; }
+.stApp { background-color: #F7F9FC !important; color: #1E293B !important; }
 #MainMenu, footer, header { visibility: hidden; }
-.block-container { max-width: 1300px !important; padding-top: 2rem; padding-bottom: 5rem; }
+.block-container { max-width: 1400px !important; padding-top: 1.5rem; padding-bottom: 5rem; }
+
+/* Force Visibility of All Text */
 h1, h2, h3, h4, h5, h6, p, span, div, li, label { color: #1E293B !important; }
 
-/* SIDEBAR */
+/* Sidebar Styling */
 [data-testid="stSidebar"] { background-color: #FFFFFF !important; border-right: 1px solid #E2E8F0 !important; padding-top: 20px;}
 [data-testid="stSidebar"] * { color: #1E293B !important; }
-.sidebar-logo { font-size: 1.8rem; font-weight: 800; color: #0EA5E9 !important; margin-bottom: 10px;}
-.sidebar-sub { font-size: 0.85rem; color: #64748B !important; margin-bottom: 25px;}
+.sidebar-logo { font-size: 1.8rem; font-weight: 800; color: #2563EB !important; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;}
+.sidebar-nav { display: flex; flex-direction: column; gap: 10px; margin-top: 20px;}
+.nav-item { padding: 12px 18px; border-radius: 8px; font-weight: 600; color: #64748B !important; cursor: pointer; transition: 0.2s; font-size: 1rem;}
+.nav-item:hover, .nav-item.active { background-color: #EFF6FF !important; color: #2563EB !important; }
 
-/* ANIMATED CHAT BUBBLES */
-.chat-bubble-user { 
-    background-color: #0EA5E9; color: white !important; padding: 15px 20px; 
-    border-radius: 20px 20px 0 20px; margin-bottom: 15px; margin-left: 15%; font-size: 0.95rem; 
-    box-shadow: 0 4px 15px rgba(14, 165, 233, 0.2);
-    animation: slideUp 0.4s ease-out forwards;
-}
-.chat-bubble-ai { 
-    background-color: #FFFFFF; border: 1px solid #E2E8F0; padding: 20px; 
-    border-radius: 20px 20px 20px 0; margin-bottom: 15px; margin-right: 15%; font-size: 0.95rem; 
-    box-shadow: 0 4px 15px rgba(0,0,0,0.03);
-    animation: slideUp 0.4s ease-out forwards;
-}
-@keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+/* Top Header */
+.top-header h2 { font-size: 1.6rem; font-weight: 800; margin-bottom: 5px; color: #0F172A !important;}
+.top-header p { color: #64748B !important; font-size: 0.95rem; }
 
-/* FILE UPLOADER */
-[data-testid="stFileUploadDropzone"] { background-color: #F1F5F9 !important; border: 2px dashed #94A3B8 !important; border-radius: 12px !important; padding: 20px !important; }
-[data-testid="stFileUploadDropzone"] * { color: #475569 !important; }
+/* Custom Chat Bubbles */
+.chat-bubble-user { background-color: #EFF6FF; border: 1px solid #DBEAFE; padding: 16px 20px; border-radius: 16px 16px 0 16px; margin-bottom: 15px; margin-left: 15%; color: #1E293B !important; font-size: 0.95rem; box-shadow: 0 2px 10px rgba(0,0,0,0.02);}
+.chat-bubble-ai { background-color: #FFFFFF; border: 1px solid #E2E8F0; padding: 16px 20px; border-radius: 16px 16px 16px 0; margin-bottom: 15px; margin-right: 15%; color: #1E293B !important; font-size: 0.95rem; box-shadow: 0 4px 15px rgba(0,0,0,0.03);}
 
-/* REPORT PANEL */
-.report-panel { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 16px; padding: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.03); animation: fadeIn 0.6s ease-out; }
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-.report-title { font-size: 1.4rem; font-weight: 800; color: #0EA5E9 !important; margin-bottom: 15px;}
-.report-content h3 { font-size: 1.1rem !important; color: #0F172A !important; margin-top: 20px; border-bottom: 2px solid #F1F5F9; padding-bottom: 5px;}
+/* File Uploader */
+[data-testid="stFileUploadDropzone"] { background-color: #F8FAFC !important; border: 2px dashed #CBD5E1 !important; border-radius: 12px !important; padding: 20px !important; }
+[data-testid="stFileUploadDropzone"] * { color: #64748B !important; }
+[data-testid="stFileUploadDropzone"] button { background-color: #FFFFFF !important; color: #2563EB !important; border: 1px solid #CBD5E1 !important; font-weight: 600 !important; border-radius: 6px;}
+
+/* Right Panel: Report Card */
+.report-panel { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 16px; padding: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.03); height: 100%;}
+.report-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;}
+.report-badge { background-color: #ECFDF5; color: #10B981 !important; padding: 6px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; border: 1px solid #A7F3D0;}
+.report-title { font-size: 1.3rem; font-weight: 700; color: #0F172A !important; }
+.report-meta { font-size: 0.85rem; color: #64748B !important; margin-bottom: 20px; border-bottom: 1px solid #E2E8F0; padding-bottom: 15px;}
+.report-content h3 { font-size: 1.05rem !important; color: #2563EB !important; margin-top: 20px; margin-bottom: 10px; border-bottom: 1px solid #EFF6FF; padding-bottom: 5px;}
 .report-content p, .report-content li { font-size: 0.95rem !important; color: #334155 !important; line-height: 1.6;}
 
-/* BUTTONS */
-.stButton > button { background-color: #0EA5E9 !important; color: #FFFFFF !important; border-radius: 8px !important; font-weight: 700 !important; padding: 10px 20px; border: none !important; width: 100%; transition: 0.3s;}
-.stButton > button:hover { background-color: #0284C7 !important; transform: scale(1.02); }
-.stDownloadButton > button { background-color: #10B981 !important; color: #FFFFFF !important; border-radius: 8px !important; font-weight: 700 !important; border: none !important; width: 100%; transition: 0.3s;}
-.stDownloadButton > button:hover { transform: scale(1.02); }
+/* Buttons */
+.stButton > button { background-color: #2563EB !important; color: #FFFFFF !important; border-radius: 8px !important; font-weight: 600 !important; padding: 10px 20px; border: none !important; width: 100%; transition: 0.3s;}
+.stButton > button:hover { background-color: #1D4ED8 !important; }
+.stDownloadButton > button { background-color: #2563EB !important; color: #FFFFFF !important; border-radius: 8px !important; font-weight: 600 !important; border: none !important; width: 100%; padding: 10px 20px;}
 
-/* CHAT INPUT */
-[data-testid="stChatInput"] > div { background-color: #FFFFFF !important; border: 2px solid #E2E8F0 !important; border-radius: 30px !important; padding: 8px 20px !important; }
+/* Chat Input */
+[data-testid="stChatInput"] { background-color: #F7F9FC !important; }
+[data-testid="stChatInput"] > div { background-color: #FFFFFF !important; border: 1px solid #E2E8F0 !important; border-radius: 30px !important; padding: 5px 20px !important; box-shadow: 0 4px 15px rgba(0,0,0,0.05) !important;}
 [data-testid="stChatInput"] textarea { color: #1E293B !important; }
+[data-testid="stChatInput"] textarea::placeholder { color: #94A3B8 !important; }
 
-/* ANIMATED HEARTBEAT LOADER */
-.heartbeat-loader {
-    display: flex; justify-content: center; align-items: center; gap: 10px; margin: 20px 0;
-}
-.heartbeat-loader svg {
-    width: 40px; height: 40px; fill: #EF4444; 
-    animation: heartbeat 1.2s infinite;
-}
-.heartbeat-loader span { color: #64748B; font-weight: 600; font-size: 0.9rem;}
-@keyframes heartbeat {
-    0% { transform: scale(1); }
-    14% { transform: scale(1.3); }
-    28% { transform: scale(1); }
-    42% { transform: scale(1.3); }
-    70% { transform: scale(1); }
-}
-
-/* ANIMATED HEALTH SCORE BAR */
-.score-container { margin-bottom: 20px; }
-.score-label { display: flex; justify-content: space-between; font-weight: 700; font-size: 0.9rem; margin-bottom: 5px; }
-.score-bar-bg { width: 100%; height: 12px; background-color: #E2E8F0; border-radius: 10px; overflow: hidden; }
-.score-bar-fill { height: 100%; border-radius: 10px; background: linear-gradient(90deg, #EF4444, #F59E0B, #10B981); width: 0%; transition: width 1.5s ease-in-out; }
+/* Emergency Banner */
+.emergency-banner { background-color: #FEF2F2; border-left: 6px solid #EF4444; padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; margin-top: 10px;}
+.emergency-banner * { color: #991B1B !important; }
 </style>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. HELPERS & PROMPTS
+# 3. HELPER FUNCTIONS
 # ==========================================
 def extract_text_from_pdfs(pdf_files):
-    text = ""
-    for pdf in pdf_files:
+    combined_text = ""
+    for pdf_file in pdf_files:
         try:
-            reader = pypdf.PdfReader(pdf)
+            reader = pypdf.PdfReader(pdf_file)
             for page in reader.pages:
-                text += page.extract_text() + "\n"
-        except:
-            pass
-    return text
+                combined_text += page.extract_text() + "\n"
+            combined_text += "\n--- End of Document ---\n\n"
+        except Exception as e:
+            combined_text += f"Error reading {pdf_file.name}: {str(e)}\n"
+    return combined_text
 
-def parse_health_score(analysis_text):
-    # AI se score extract karne ki koshish (Regex)
-    match = re.search(r'Score:\s*(\d+)', analysis_text, re.IGNORECASE)
-    if match:
-        return int(match.group(1))
-    return 85 # Default fallback
+def generate_pdf_report(report_text, symptoms):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", 'B', 20)
+    pdf.set_text_color(37, 99, 235)
+    pdf.cell(0, 10, "Reason Clinical Diagnostics Report", ln=True, align='C')
+    pdf.set_font("Arial", size=10)
+    pdf.set_text_color(100, 100, 100)
+    pdf.cell(0, 10, f"Generated on: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}", ln=True, align='C')
+    pdf.ln(10)
+    pdf.set_font("Arial", 'B', 12)
+    pdf.set_text_color(0, 0, 0)
+    pdf.cell(0, 10, "Source Data:", ln=True)
+    pdf.set_font("Arial", size=11)
+    pdf.multi_cell(0, 8, symptoms.encode('ascii', 'ignore').decode('ascii')[:500] + "...") 
+    pdf.ln(5)
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(0, 10, "Diagnostic Assessment:", ln=True)
+    pdf.set_font("Arial", size=11)
+    clean_text = report_text.replace('**', '').replace('###', '').encode('ascii', 'ignore').decode('ascii')
+    pdf.multi_cell(0, 8, clean_text)
+    return bytes(pdf.output())
+
+def check_emergency(text):
+    text = text.lower()
+    keywords = ["chest pain", "heart attack", "stroke", "cannot breathe", "severe bleeding", "suicidal"]
+    return any(k in text for k in keywords)
 
 # ==========================================
-# 4. SIDEBAR (PROFILE)
+# 4. SIDEBAR
 # ==========================================
 with st.sidebar:
-    st.markdown('<div class="sidebar-logo">🫀 Reason</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sidebar-sub">Your Personal Health Solution</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sidebar-logo">🧠 Reason</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sidebar-nav"><div class="nav-item active">💬 AI Assistant</div><div class="nav-item">📄 Lab Reports</div><div class="nav-item">⚙️ Settings</div></div>', unsafe_allow_html=True)
     
-    st.markdown("### 👤 My Profile")
-    with st.form("profile_form"):
-        name = st.text_input("Name", value=st.session_state.profile['name'])
-        col1, col2 = st.columns(2)
-        with col1:
-            age = st.number_input("Age", 1, 120, value=st.session_state.profile['age'])
-            height = st.number_input("Height (cm)", 50.0, 250.0, value=st.session_state.profile['height'])
-        with col2:
-            gender = st.selectbox("Gender", ["Male", "Female", "Other"], index=["Male", "Female", "Other"].index(st.session_state.profile['gender']))
-            weight = st.number_input("Weight (kg)", 10.0, 300.0, value=st.session_state.profile['weight'])
-        
-        if st.form_submit_button("Update Profile"):
-            conn = sqlite3.connect('reason_health.db')
-            c = conn.cursor()
-            c.execute("INSERT OR REPLACE INTO profile (id, name, age, gender, height, weight) VALUES (1, ?, ?, ?, ?, ?)", (name, age, gender, height, weight))
-            conn.commit()
-            conn.close()
-            st.session_state.profile = {"name": name, "age": age, "gender": gender, "height": height, "weight": weight}
-            st.success("Profile Updated!")
-
-    st.markdown("---")
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    
     st.markdown("### ⚙️ Configuration")
-    api_key_input = SECRET_KEY if SECRET_KEY else st.text_input("API Key", type="password")
+    if SECRET_KEY:
+        st.success("✅ API Key connected.")
+        api_key_input = SECRET_KEY
+    else:
+        st.warning("⚠️ API Key required.")
+        api_key_input = st.text_input("Groq API Key", type="password")
+    
+    st.markdown("<p style='font-size: 0.75rem; color: #94A3B8; margin-top: 20px;'>Trusted Medical AI. Built for better decisions, with patient safety at the core.</p>", unsafe_allow_html=True)
 
 # ==========================================
-# 5. MAIN UI (2 COLUMNS)
+# 5. MAIN UI (3-COLUMN LAYOUT)
 # ==========================================
 col_chat, col_report = st.columns([1.2, 1], gap="large")
 
+# --- LEFT COLUMN: CHAT & UPLOAD ---
 with col_chat:
-    st.markdown(f"### Welcome back, {st.session_state.profile['name'] if st.session_state.profile['name'] else 'Friend'}! 👋")
-    st.markdown("<p style='color: #64748B;'>Let's understand your health together. You can type your symptoms or upload a lab report.</p>", unsafe_allow_html=True)
+    st.markdown('<div class="top-header"><h2>Medical AI Assistant</h2><p>Describe your symptoms, upload lab reports, or ask a medical question.</p></div>', unsafe_allow_html=True)
     
+    # Render Chat History
     for msg in st.session_state.messages:
         if msg["role"] == "user":
             st.markdown(f'<div class="chat-bubble-user">{msg["content"]}</div>', unsafe_allow_html=True)
         else:
-            st.markdown(f'<div class="chat-bubble-ai">{msg["content"]}</div>', unsafe_allow_html=True)
+            # Render AI markdown properly inside bubble
+            formatted_content = msg["content"].replace("\n", "<br>").replace("###", "<b>").replace("**", "")
+            st.markdown(f'<div class="chat-bubble-ai">{formatted_content}</div>', unsafe_allow_html=True)
             
-    st.markdown("#### 📄 Have a Lab Report?")
-    uploaded_files = st.file_uploader("Upload Lab Reports (PDF)", type=["pdf"], accept_multiple_files=True, label_visibility="collapsed")
+    # PDF Uploader
+    st.markdown("---")
+    st.markdown("#### 📄 Upload Lab Reports")
+    uploaded_files = st.file_uploader("Upload PDFs", type=["pdf"], accept_multiple_files=True, label_visibility="collapsed")
     
-    if uploaded_files and st.button("Explain My Reports"):
-        if not api_key_input:
-            st.error("API Key missing.")
-        else:
-            # Show Animated Heartbeat Loader
-            loader_placeholder = st.empty()
-            loader_placeholder.markdown("""
-            <div class="heartbeat-loader">
-                <svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-                <span>Reason is analyzing your reports...</span>
-            </div>
-            """, unsafe_allow_html=True)
+    if uploaded_files:
+        if st.button("Analyze Lab Reports"):
+            if not api_key_input:
+                st.error("⚠️ API Key missing.")
+            else:
+                with st.spinner("Extracting data from PDFs..."):
+                    extracted = extract_text_from_pdfs(uploaded_files)
+                
+                with st.spinner("Reasoning through medical data..."):
+                    try:
+                        client = Groq(api_key=api_key_input)
+                        sys_prompt = "You are Reason. Analyze these lab reports. FORMAT: ### 📋 Key Findings [List abnormal values] ### 🦠 Top Possible Conditions **1. [Condition]** *Why it fits:* [explain] **2. [Condition]** *Why it fits:* [explain] ### 🚨 Urgency Level **[Low / Medium / High / CRITICAL]** [explain] ### 🧪 Recommendations * **[Action]:** [advice]"
+                        res = client.chat.completions.create(messages=[{"role": "system", "content": sys_prompt}, {"role": "user", "content": extracted}], model="openai/gpt-oss-120b", temperature=0.1).choices[0].message.content
+                        
+                        # Update states
+                        st.session_state.messages.append({"role": "user", "content": f"Uploaded {len(uploaded_files)} Lab Report(s) for analysis."})
+                        st.session_state.messages.append({"role": "assistant", "content": "Lab report received. Diagnostic report generated on the right panel."})
+                        st.session_state.report_data = res
+                        st.session_state.report_source = "Lab Analysis"
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error: {e}")
 
-            extracted_text = extract_text_from_pdfs(uploaded_files)
-            
-            sys_prompt = f"""
-            You are Reason, a compassionate health guide.
-            Patient: {st.session_state.profile['age']}y, {st.session_state.profile['gender']}, Weight: {st.session_state.profile['weight']}kg.
-            
-            Explain this lab report in simple English.
-            
-            FORMAT STRICTLY LIKE THIS:
-            Health Score: [Number between 10 and 100]
-            
-            ### 📊 What Your Report Says
-            [Simple explanation]
-            
-            ### 🩺 Possible Reasons
-            [2-3 simple reasons]
-            
-            ### 💡 Next Steps
-            *   **Diet:** [Food advice]
-            *   **Doctor:** [Which specialist to visit]
-            """
-            
-            client = Groq(api_key=api_key_input)
-            res = client.chat.completions.create(
-                messages=[{"role": "system", "content": sys_prompt}, {"role": "user", "content": extracted_text}],
-                model="openai/gpt-oss-120b", temperature=0.3
-            ).choices[0].message.content
-            
-            loader_placeholder.empty() # Remove loader
-            st.session_state.report_data = res
-            st.session_state.messages.append({"role": "user", "content": f"Uploaded {len(uploaded_files)} lab report(s)."})
-            st.session_state.messages.append({"role": "assistant", "content": "Analysis complete! I have created your Health Insights on the right."})
-            st.rerun()
-
+# --- RIGHT COLUMN: DIAGNOSTIC REPORT ---
 with col_report:
     if st.session_state.report_data:
-        # Extract Score
-        score = parse_health_score(st.session_state.report_data)
-        
-        # Clean text for display
-        clean_text = re.sub(r'Health Score:\s*\d+', '', st.session_state.report_data)
-        formatted_report = clean_text.replace('###', '<h3>').replace('**', '').replace('\n', '<br>')
-        
-        # Animated Score Bar Color
-        bar_color = "#10B981" if score > 70 else "#F59E0B" if score > 40 else "#EF4444"
+        # Display Generated Report
+        formatted_report = st.session_state.report_data.replace('###', '<h3>').replace('**', '').replace('\n', '<br>')
         
         st.markdown(f"""
         <div class="report-panel">
-            <div class="report-title">Your Health Insights</div>
-            
-            <div class="score-container">
-                <div class="score-label">
-                    <span>Health Score</span>
-                    <span style="color: {bar_color};">{score}/100</span>
-                </div>
-                <div class="score-bar-bg">
-                    <div class="score-bar-fill" style="width: {score}%; background: {bar_color};"></div>
-                </div>
+            <div class="report-header">
+                <div class="report-title">Clinical Diagnostic Report</div>
+                <div class="report-badge">For Doctor Review</div>
             </div>
-            
+            <div class="report-meta">
+                Generated on {datetime.datetime.now().strftime('%b %d, %Y')} • Reason Clinical Engine
+            </div>
             <div class="report-content">
                 {formatted_report}
             </div>
@@ -281,67 +220,55 @@ with col_report:
         
         st.markdown("<br>", unsafe_allow_html=True)
         
-        pdf = FPDF()
-        pdf.add_page()
-        pdf.set_font("Arial", 'B', 16)
-        pdf.cell(0, 10, "Reason Health Report", ln=True, align='C')
-        pdf.set_font("Arial", size=11)
-        clean_pdf_text = st.session_state.report_data.replace('**', '').replace('###', '').encode('ascii', 'ignore').decode('ascii')
-        pdf.multi_cell(0, 8, clean_pdf_text)
-        
-        st.download_button("📥 Save My Health Report (PDF)", data=bytes(pdf.output()), file_name="My_Health_Report.pdf", mime="application/pdf", use_container_width=True)
+        # Download Button
+        pdf_bytes = generate_pdf_report(st.session_state.report_data, st.session_state.report_source)
+        st.download_button(
+            label="📥 Download Full Report (PDF)",
+            data=pdf_bytes,
+            file_name="Reason_Report.pdf",
+            mime="application/pdf",
+            use_container_width=True
+        )
     else:
+        # Empty State
         st.markdown("""
-        <div class="report-panel" style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 400px; text-align: center; border: 2px dashed #E2E8F0; background: #F8FAFC;">
-            <div style="font-size: 4rem; margin-bottom: 10px; opacity: 0.4;">🫀</div>
-            <div style="font-weight: 800; color: #475569; font-size: 1.2rem;">Your Health Insights</div>
-            <p style="font-size: 0.9rem; color: #94A3B8; max-width: 80%;">Upload a lab report or chat with Reason to see your health score and simple advice here.</p>
+        <div class="report-panel" style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 500px; text-align: center; border: 2px dashed #E2E8F0;">
+            <div style="font-size: 3rem; margin-bottom: 15px; opacity: 0.5;">📄</div>
+            <div style="font-weight: 700; color: #64748B; font-size: 1.1rem;">No Report Generated Yet</div>
+            <p style="font-size: 0.9rem; color: #94A3B8; max-width: 80%;">Chat with the AI or upload a lab report to generate a clinical diagnosis.</p>
         </div>
         """, unsafe_allow_html=True)
 
 # ==========================================
-# 6. CHAT INPUT
+# 6. CHAT INPUT LOGIC (BOTTOM)
 # ==========================================
-if prompt := st.chat_input("How are you feeling today?"):
-    if not api_key_input:
-        st.error("API Key missing.")
-    else:
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        
-        # Show Animated Heartbeat Loader
-        loader_placeholder = st.empty()
-        loader_placeholder.markdown("""
-        <div class="heartbeat-loader">
-            <svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-            <span>Reason is thinking...</span>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        sys_prompt = f"""
-        You are Reason, a caring health guide.
-        Patient: {st.session_state.profile['age']}y, {st.session_state.profile['gender']}, Weight: {st.session_state.profile['weight']}kg.
-        
-        The patient says: "{prompt}"
-        Respond in very simple language. Be empathetic.
-        
-        FORMAT STRICTLY LIKE THIS:
-        Health Score: [Number between 10 and 100]
-        
-        ### 📊 What This Might Mean
-        [Explain in simple words]
-        
-        ### 💡 What You Should Do
-        *   **Home Care:** [Advice]
-        *   **Doctor Visit:** [Which doctor to see]
-        """
-        
-        client = Groq(api_key=api_key_input)
-        res = client.chat.completions.create(
-            messages=[{"role": "system", "content": sys_prompt}, {"role": "user", "content": prompt}],
-            model="openai/gpt-oss-120b", temperature=0.4
-        ).choices[0].message.content
-        
-        loader_placeholder.empty()
-        st.session_state.report_data = res
-        st.session_state.messages.append({"role": "assistant", "content": "I have created a health insight for you. Please check the right panel."})
+if prompt := st.chat_input("Type your message or ask a medical question..."):
+    # 1. Save User Message
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    
+    # 2. Emergency Check
+    if check_emergency(prompt):
+        st.session_state.messages.append({"role": "assistant", "content": "🚨 CALL EMERGENCY SERVICES (1122 / 911) IMMEDIATELY. Do not drive yourself."})
         st.rerun()
+    
+    # 3. AI Generation
+    if api_key_input:
+        with st.spinner("Reasoning..."):
+            try:
+                client = Groq(api_key=api_key_input)
+                sys_prompt = "You are Reason. Analyze symptoms. FORMAT: ### 📋 Patient Summary [1 sentence] ### 🦠 Top Possible Conditions **1. [Condition]** *Why it fits:* [1 sentence] **2. [Condition]** *Why it fits:* [1 sentence] ### 🚨 Urgency Level **[Level]** [1 sentence] ### 🧪 Recommended Next Steps * **[Test]:** [Why needed] * **[Action]:** [Consult specialist]"
+                
+                res = client.chat.completions.create(messages=[{"role": "system", "content": sys_prompt}, {"role": "user", "content": prompt}], model="openai/gpt-oss-120b", temperature=0.2).choices[0].message.content
+                
+                # Save AI Response to Chat
+                st.session_state.messages.append({"role": "assistant", "content": "I have analyzed your symptoms. A detailed clinical report is available on the right panel."})
+                
+                # Save Data to Right Column
+                st.session_state.report_data = res
+                st.session_state.report_source = prompt
+                
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error: {e}")
+    else:
+        st.error("⚠️ API Key missing. Please check the sidebar.")
