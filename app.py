@@ -1,234 +1,216 @@
 import streamlit as st
 import os
 from groq import Groq
+from fpdf import FPDF
+import datetime
+import pypdf
 
-# =====================================================
-# 1. PAGE CONFIG
-# =====================================================
-st.set_page_config(page_title="BioMind AI | Command Center", page_icon="🧬", layout="wide", initial_sidebar_state="expanded")
+# --- PAGE CONFIG ---
+st.set_page_config(page_title="Reason | Clinical Diagnostics", page_icon="🧠", layout="wide", initial_sidebar_state="expanded")
 
-# =====================================================
-# 2. ULTRA MODERN UI (CSS)
-# =====================================================
+# Initialize Session State
+if "messages" not in st.session_state:
+    st.session_state.messages = [
+        {"role": "assistant", "content": "Welcome to Reason. I am your advanced medical reasoning engine. Please describe your symptoms or upload a medical report to begin."}
+    ]
+
+if "last_report" not in st.session_state:
+    st.session_state.last_report = None
+
+try:
+    SECRET_KEY = st.secrets["GROQ_API_KEY"]
+except:
+    SECRET_KEY = None
+
+# --- CLEAN MEDICAL CSS ---
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
 
-:root {
-    --bg: #050508;
-    --surface: rgba(20, 20, 25, 0.6);
-    --primary: #00F0FF;
-    --secondary: #7000FF;
-    --text-main: #F8FAFC;
-    --text-muted: #94A3B8;
-    --border: rgba(255, 255, 255, 0.08);
-}
-
-/* Global App & Background */
-html, body, [class*="css"] {
-    font-family: 'Space Grotesk', sans-serif !important;
-}
-.stApp {
-    background-color: var(--bg);
-    background-image: 
-        radial-gradient(circle at 10% 20%, rgba(0, 240, 255, 0.05) 0%, transparent 40%),
-        radial-gradient(circle at 90% 80%, rgba(112, 0, 255, 0.08) 0%, transparent 40%);
-    color: var(--text-main);
-}
+html, body, [class*="css"] { font-family: 'Plus Jakarta Sans', sans-serif !important; }
+.stApp { background-color: #F8FAFC !important; color: #0F172A !important; }
 #MainMenu, footer, header { visibility: hidden; }
-.block-container { max-width: 1000px; padding-top: 2rem; padding-bottom: 5rem; }
+.block-container { max-width: 950px; padding-top: 2rem; padding-bottom: 6rem; }
 
-/* Custom Scrollbar */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+h1, h2, h3, h4, h5, h6, p, span, div, li, label { color: #0F172A !important; }
 
-/* Sidebar Styling */
-[data-testid="stSidebar"] {
-    background: rgba(10, 10, 15, 0.95);
-    border-right: 1px solid var(--border);
-    backdrop-filter: blur(20px);
-}
-.sidebar-title {
-    font-size: 1.2rem;
-    font-weight: 700;
-    color: white;
-    margin-bottom: 5px;
-}
-.sidebar-sub {
-    font-size: 0.8rem;
-    color: var(--text-muted);
-    margin-bottom: 25px;
-}
-.status-dot {
-    height: 8px;
-    width: 8px;
-    background-color: #10B981;
-    border-radius: 50%;
-    display: inline-block;
-    box-shadow: 0 0 10px #10B981;
-    margin-right: 8px;
-    animation: pulse 2s infinite;
-}
-@keyframes pulse {
-    0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
-    70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
-}
+[data-testid="stSidebar"] { background-color: #FFFFFF !important; border-right: 1px solid #E2E8F0 !important; }
+[data-testid="stSidebar"] * { color: #0F172A !important; }
 
-/* Chat Container */
-[data-testid="stChatMessage"] {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 20px 24px;
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    margin-bottom: 1.5rem;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-    transition: transform 0.2s ease, border-color 0.2s ease;
-}
-[data-testid="stChatMessage"]:hover {
-    border-color: rgba(0, 240, 255, 0.3);
-    transform: translateY(-2px);
-}
+.hero { text-align: center; margin-bottom: 30px; }
+.hero h1 { font-size: 3.5rem; font-weight: 800; color: #1E3A8A !important; margin-bottom: 5px; }
+.hero p { color: #475569 !important; font-size: 0.95rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }
 
-/* Chat Input (Capsule Style) */
-[data-testid="stChatInput"] {
-    background: rgba(15, 15, 20, 0.9) !important;
-    border: 1px solid rgba(255,255,255,0.1) !important;
-    border-radius: 50px !important;
-    padding: 8px 16px !important;
-    backdrop-filter: blur(10px);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
-    transition: 0.3s;
-}
-[data-testid="stChatInput"]:focus-within {
-    border-color: var(--primary) !important;
-    box-shadow: 0 0 20px rgba(0, 240, 255, 0.2) !important;
-}
+[data-testid="stChatMessage"] { background-color: #FFFFFF !important; border: 1px solid #E2E8F0 !important; border-radius: 16px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.03) !important; }
+[data-testid="stChatMessage"] * { color: #0F172A !important; }
+[data-testid="stChatMessage"]:has(div[aria-label="Chat message from user"]) { background: linear-gradient(135deg, #0EA5E9 0%, #2563EB 100%) !important; border: none !important; }
+[data-testid="stChatMessage"]:has(div[aria-label="Chat message from user"]) * { color: #FFFFFF !important; }
 
-/* Hero Header */
-.hero-title {
-    font-size: 2.8rem;
-    font-weight: 700;
-    background: linear-gradient(120deg, #00F0FF 0%, #7000FF 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    margin-bottom: 0px;
-    letter-spacing: -1px;
-}
-.hero-subtitle {
-    font-size: 1rem;
-    color: var(--text-muted);
-    margin-bottom: 30px;
-    font-weight: 400;
-    letter-spacing: 0.5px;
-}
+[data-testid="stChatInput"] { background-color: transparent !important; }
+[data-testid="stChatInput"] > div { background-color: #FFFFFF !important; border: 2px solid #CBD5E1 !important; border-radius: 40px !important; padding: 10px 20px !important; }
+[data-testid="stChatInput"] > div:focus-within { border-color: #2563EB !important; box-shadow: 0 0 15px rgba(37, 99, 235, 0.2) !important; }
+[data-testid="stChatInput"] textarea { color: #0F172A !important; }
+[data-testid="stChatInput"] textarea::placeholder { color: #64748B !important; }
+
+.emergency-banner { background-color: #FEF2F2 !important; border-left: 6px solid #EF4444 !important; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+.emergency-banner * { color: #991B1B !important; }
+
+/* TABS */
+.stTabs [data-baseweb="tab-list"] { gap: 30px; border-bottom: 2px solid #E2E8F0; }
+.stTabs [data-baseweb="tab"] { height: 50px; background-color: transparent; }
+.stTabs [data-baseweb="tab"] p { color: #475569 !important; font-weight: 700; font-size: 1.05rem; }
+.stTabs [aria-selected="true"] { border-bottom: 3px solid #2563EB; }
+.stTabs [aria-selected="true"] p { color: #1E3A8A !important; }
+
+/* FILE UPLOADER */
+[data-testid="stFileUploader"] { background-color: transparent !important; }
+[data-testid="stFileUploadDropzone"] { background-color: #FFFFFF !important; border: 2px dashed #94A3B8 !important; border-radius: 12px !important; padding: 20px !important; }
+[data-testid="stFileUploadDropzone"] * { color: #0F172A !important; }
+[data-testid="stFileUploadDropzone"] button { background-color: #2563EB !important; border: none !important; border-radius: 8px !important; }
+[data-testid="stFileUploadDropzone"] button * { color: #FFFFFF !important; }
+
+.stButton > button { background-color: #2563EB !important; border: none !important; border-radius: 8px !important; width: 100%; padding: 12px; }
+.stButton > button * { color: #FFFFFF !important; font-weight: 700 !important; }
+
+.stDownloadButton > button { background-color: #10B981 !important; border: none !important; border-radius: 8px !important; width: 100%; padding: 12px; }
+.stDownloadButton > button * { color: #FFFFFF !important; font-weight: 700 !important; }
+
+[data-testid="stExpander"] { border: 1px solid #E2E8F0 !important; border-radius: 8px; background-color: #FFFFFF !important; }
+[data-testid="stExpander"] * { color: #0F172A !important; }
 </style>
 """, unsafe_allow_html=True)
 
-# =====================================================
-# 3. SIDEBAR (Controls & Status)
-# =====================================================
+# --- FUNCTIONS ---
+def extract_text_from_pdfs(pdf_files):
+    combined_text = ""
+    for pdf in pdf_files:
+        try:
+            reader = pypdf.PdfReader(pdf)
+            for page in reader.pages:
+                combined_text += page.extract_text() + "\n"
+        except Exception as e:
+            pass
+    return combined_text
+
+def generate_pdf_report(report_text, symptoms):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", 'B', 20)
+    pdf.set_text_color(37, 99, 235)
+    pdf.cell(0, 10, "Reason Clinical Diagnostics Report", ln=True, align='C')
+    pdf.set_font("Arial", size=10)
+    pdf.set_text_color(100, 100, 100)
+    pdf.cell(0, 10, f"Generated on: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", ln=True, align='C')
+    pdf.ln(10)
+    pdf.set_font("Arial", 'B', 12)
+    pdf.set_text_color(0, 0, 0)
+    pdf.cell(0, 10, "Source Data (Symptoms/Report):", ln=True)
+    pdf.set_font("Arial", size=11)
+    pdf.multi_cell(0, 8, symptoms.encode('ascii', 'ignore').decode('ascii')[:1000] + "...") 
+    pdf.ln(5)
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(0, 10, "Diagnostic Assessment:", ln=True)
+    pdf.set_font("Arial", size=11)
+    clean_text = report_text.replace('**', '').replace('###', '').replace('*', '-').encode('ascii', 'ignore').decode('ascii')
+    pdf.multi_cell(0, 8, clean_text)
+    pdf.ln(10)
+    pdf.set_font("Arial", 'I', 9)
+    pdf.set_text_color(150, 0, 0)
+    pdf.multi_cell(0, 6, "Disclaimer: This report is generated by Reason and is not a substitute for professional medical diagnosis. Please consult a doctor.")
+    return bytes(pdf.output())
+
+def check_emergency(symptoms_text):
+    text = symptoms_text.lower()
+    keywords = ["chest pain", "heart attack", "radiating to left arm", "crushing chest", "stroke", "slurred speech", "facial drooping", "arm weakness", "severe bleeding", "cannot breathe", "shortness of breath", "suicidal", "want to die", "overdose"]
+    return any(k in text for k in keywords)
+
+# --- MAIN UI ---
+st.markdown('<div class="hero"><h1>🧠 Reason</h1><p>Advanced Medical Reasoning Engine</p></div>', unsafe_allow_html=True)
+
+# Sidebar
+api_key_input = ""
 with st.sidebar:
-    st.markdown('<div class="sidebar-title">⚙️ System Config</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sidebar-sub">Secure API Authentication</div>', unsafe_allow_html=True)
-    
-    api_key_input = st.text_input("Groq API Key", type="password", placeholder="gsk_...")
-    
+    st.markdown("### ⚙️ System Settings")
+    if SECRET_KEY:
+        st.success("✅ API Key connected securely.")
+        api_key_input = SECRET_KEY
+    else:
+        st.warning("⚠️ API Key required.")
+        api_key_input = st.text_input("Groq API Key", type="password", placeholder="gsk_...")
     st.divider()
+    st.markdown("<p style='font-size: 0.85rem;'><b>Disclaimer:</b> Reason does not replace a real doctor. Consult a professional for emergencies.</p>", unsafe_allow_html=True)
+
+# Tabs
+tab1, tab2 = st.tabs(["🩺 Symptom Chat", "📄 Upload Medical Reports"])
+
+# --- TAB 1: CHAT ---
+with tab1:
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"], avatar="🩺" if message["role"] == "assistant" else "👤"):
+            st.markdown(message["content"])
+
+    if prompt := st.chat_input("Describe your symptoms..."):
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user", avatar="👤"):
+            st.markdown(prompt)
+
+        with st.chat_message("assistant", avatar="🩺"):
+            if not api_key_input:
+                st.error("⚠️ API Key missing.")
+                st.stop()
+            if check_emergency(prompt):
+                st.markdown('<div class="emergency-banner">🚨 CALL EMERGENCY SERVICES (1122 / 911) IMMEDIATELY <br><span>Do not drive yourself. Unlock the door and wait for paramedics.</span></div>', unsafe_allow_html=True)
+
+            with st.spinner("Reasoning..."):
+                try:
+                    client = Groq(api_key=api_key_input)
+                    sys_prompt = "You are Reason, an elite medical diagnostician. Never refer to yourself as AI. FORMAT: ### 📋 Patient Summary [1 sentence] ### 🦠 Top Possible Conditions **1. [Condition]** *Why it fits:* [1 sentence] **2. [Condition]** *Why it fits:* [1 sentence] **3. [Condition]** *Why it fits:* [1 sentence] ### 🚨 Urgency Level **[Low / Medium / High / CRITICAL]** [1 sentence] ### 🧪 Recommended Next Steps * **[Test]:** [Why needed] * **[Action]:** [Consult specialist]"
+                    res = client.chat.completions.create(messages=[{"role": "system", "content": sys_prompt}, {"role": "user", "content": prompt}], model="openai/gpt-oss-120b", temperature=0.2).choices[0].message.content
+                    st.markdown(res)
+                    st.session_state.messages.append({"role": "assistant", "content": res})
+                    st.session_state.last_report = res
+                    st.session_state.last_symptoms = prompt
+                except Exception as e:
+                    st.error(f"System Error: {str(e)}")
+
+# --- TAB 2: MULTIPLE UPLOADS ---
+with tab2:
+    st.markdown("### 📄 Upload Lab Reports (PDF)")
+    st.markdown("<p>Upload one or multiple PDFs (e.g., CBC + LFT). Reason will combine them and provide a full diagnosis.</p>", unsafe_allow_html=True)
     
-    st.markdown(f'<div style="font-size: 0.8rem; color: var(--text-muted);"><span class="status-dot"></span> Neural Engine Online</div>', unsafe_allow_html=True)
-    st.markdown('<div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 8px;">Model: <b>Llama-3-70B</b></div>', unsafe_allow_html=True)
+    uploaded_files = st.file_uploader("Upload PDFs", type=["pdf"], accept_multiple_files=True, label_visibility="collapsed")
     
-    st.divider()
-    st.markdown("""
-    <div style="background: rgba(255, 50, 50, 0.1); border-left: 3px solid #FF3232; padding: 10px; border-radius: 4px;">
-        <div style="font-size: 0.75rem; color: #FFA0A0;">
-            <b>Disclaimer:</b> BioMind is an AI. It cannot replace professional medical advice.
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-# =====================================================
-# 4. MAIN INTERFACE
-# =====================================================
-st.markdown('<div class="hero-title">BioMind AI</div>', unsafe_allow_html=True)
-st.markdown('<div class="hero-subtitle">Advanced Medical Diagnostics & Disease Detective</div>', unsafe_allow_html=True)
-
-# Initialize chat history
-if "messages" not in st.session_state:
-    st.session_state.messages = [
-        {"role": "assistant", "content": "Welcome to BioMind. I am your AI medical assistant. Please describe your symptoms, their duration, and any relevant details."}
-    ]
-
-# Display chat messages
-for message in st.session_state.messages:
-    avatar = "🧬" if message["role"] == "assistant" else "👤"
-    with st.chat_message(message["role"], avatar=avatar):
-        st.markdown(message["content"])
-
-# Accept user input
-if prompt := st.chat_input("Describe your symptoms (e.g., persistent cough, fever...)"):
-    
-    # Add user message
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user", avatar="👤"):
-        st.markdown(prompt)
-
-    # Generate AI response
-    with st.chat_message("assistant", avatar="🧬"):
-        if not api_key_input:
-            st.error("⚠️ API Key missing. Please enter your Groq API Key in the sidebar.")
-            st.stop()
-            
-        with st.spinner("Analyzing medical database..."):
-            try:
-                client = Groq(api_key=api_key_input)
+    if uploaded_files:
+        st.info(f"📁 {len(uploaded_files)} file(s) uploaded.")
+        if st.button("Analyze Reports", use_container_width=True):
+            if not api_key_input:
+                st.error("⚠️ API Key missing.")
+                st.stop()
                 
-                system_prompt = """
-                You are BioMind, an elite AI medical diagnostician.
-                Analyze the patient's symptoms and provide a structured, professional medical report.
+            with st.spinner("Extracting text from all PDFs..."):
+                extracted = extract_text_from_pdfs(uploaded_files)
                 
-                YOU MUST FORMAT YOUR RESPONSE EXACTLY LIKE THIS USING MARKDOWN:
-
-                ### 🦠 Top Possible Conditions
-                **1. [Condition Name]**
-                *Why it fits:* [1 sentence explanation]
-
-                **2. [Condition Name]**
-                *Why it fits:* [1 sentence explanation]
-
-                **3. [Condition Name]**
-                *Why it fits:* [1 sentence explanation]
-
-                ### 🚨 Urgency Level
-                **[Low / Medium / High]**
-                [1 sentence explaining the urgency]
-
-                ### 🧪 Recommended Next Steps
-                *   **[Test Name]:** [Why this test is needed]
-                *   **[Test Name]:** [Why this test is needed]
-                *   **[Action]:** [E.g., Consult a specialist]
-
-                ---
-                *⚕️ Disclaimer: I am an AI assistant. This is not a substitute for professional medical diagnosis. Please consult a doctor immediately.*
-                """
+            if len(extracted.strip()) < 20:
+                st.error("Could not read PDF text.")
+            else:
+                st.success("Text extracted from all files!")
+                with st.expander("View Extracted Text"):
+                    st.text(extracted[:1500] + "..." if len(extracted) > 1500 else extracted)
                 
-                chat_completion = client.chat.completions.create(
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": prompt}
-                    ],
-                    model="openai/gpt-oss-120b",
-                    temperature=0.2, 
-                )
-                
-                response = chat_completion.choices[0].message.content
-                st.markdown(response)
-                st.session_state.messages.append({"role": "assistant", "content": response})
-                
-            except Exception as e:
-                st.error(f"System Error: {str(e)}")
+                with st.spinner("Reasoning through all reports..."):
+                    try:
+                        client = Groq(api_key=api_key_input)
+                        sys_prompt = "You are Reason. Analyze these combined medical reports. Never refer to yourself as AI. FORMAT: ### 📋 Key Findings [list abnormal values] ### 🦠 Top Possible Conditions **1. [Condition]** *Why it fits:* [explain based on reports] ### 🚨 Urgency Level **[Level]** [explain] ### 🧪 Recommendations * **[Action]:** [advice based on all reports]"
+                        res = client.chat.completions.create(messages=[{"role": "system", "content": sys_prompt}, {"role": "user", "content": extracted}], model="openai/gpt-oss-120b", temperature=0.1).choices[0].message.content
+                        st.markdown("---")
+                        st.markdown(res)
+                        st.session_state.last_report = res
+                        st.session_state.last_symptoms = f"Analysis of {len(uploaded_files)} uploaded medical reports."
+                    except Exception as e:
+                        st.error(f"Error: {str(e)}")
+
+# --- PDF DOWNLOAD BUTTON ---
+if st.session_state.last_report:
+    st.markdown("<br>", unsafe_allow_html=True)
+    pdf_bytes = generate_pdf_report(st.session_state.last_report, st.session_state.last_symptoms)
+    st.download_button("📥 Download Official Report (PDF)", data=pdf_bytes, file_name="Reason_Report.pdf", mime="application/pdf", use_container_width=True)
