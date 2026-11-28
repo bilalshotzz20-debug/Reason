@@ -1172,10 +1172,3 @@ if prompt:
 # FOOTER
 # =========================================================
 
-st.markdown("""
-<div class="app-footer">
-    REASON CLINICAL AI · INTELLIGENT HEALTH INFORMATION SUPPORT
-    <br>
-    Built with Streamlit and Groq · Not a substitute for medical care
-</div>
-""", unsafe_allow_html=True)
